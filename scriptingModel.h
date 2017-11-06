@@ -31,17 +31,10 @@ template <class T>
 class SimpleBlackScholes : public Model<T>
 {
 	Date				myToday;
-    double              mySpot0;
-    double              myRate0;
-    double              myVol0;
-	
-    //  Note that these mutables mean the model is NOT thread safe
-    //      A multi-threaded implementation would require copy of the model per task or per thread
-    //      A more complicated approach would be to copy only the mutables
-    mutable T           mySpot;
-    mutable T           myRate;
-    mutable T           myVol;
-    mutable T           myDrift;
+    T                   mySpot;
+    T                   myRate;
+    T                   myVol;
+    T                   myDrift;
 
 	bool				myTime0;	//	If today is among simul dates
 	vector<double>		myTimes;
@@ -49,15 +42,6 @@ class SimpleBlackScholes : public Model<T>
 	vector<double>		mySqrtDt;
 		
 private:
-
-    //  Reset T params from double params (in AAD context, to put them on tape)
-    void resetParams() const
-    {
-        mySpot = mySpot0;
-        myRate = myRate0;
-        myVol = myVol0;
-        myDrift = -myRate + 0.5*myVol*myVol;
-    }
 
     //	Calculate all deterministic discount factors
     void calcDf( vector<T>& dfs) const
@@ -70,7 +54,8 @@ public:
 
 	//	Construct with T0, S0, vol and rate
     SimpleBlackScholes( const Date& today, const double spot, const double vol, const double rate)
-		: myToday( today), mySpot0( spot), myVol0( vol), myRate0( rate)
+		: myToday( today), mySpot( spot), myVol( vol), myRate( rate),
+        myDrift(-rate+0.5*vol*vol)
     {}
 
 	//	Clone
@@ -118,7 +103,6 @@ public:
         const override
     {
         //  Compute discount factors
-        resetParams();
         calcDf( numeraires);
         //  Note the ineffiency: in this case, numeraires could be computed only once
 
@@ -142,16 +126,9 @@ template <class T>
 class SimpleBachelier : public Model<T>
 {
     Date				myToday;
-    double              mySpot0;
-    double              myRate0;
-    double              myVol0;
-
-    //  Note that these mutables mean the model is NOT thread safe
-    //      A multi-threaded implementation would require copy of the model per task or per thread
-    //      A more complicated approach would be to copy only the mutables
-    mutable T           mySpot;
-    mutable T           myRate;
-    mutable T           myVol;
+    T                   mySpot;
+    T                   myRate;
+    T                   myVol;
 
     bool				myTime0;	//	If today is among simul dates
     vector<double>		myTimes;
@@ -159,14 +136,6 @@ class SimpleBachelier : public Model<T>
     vector<double>		mySqrtDt;
 
 private:
-
-    //  Reset T params from double params (in AAD context, to put them on tape)
-    void resetParams() const
-    {
-        mySpot = mySpot0;
-        myRate = myRate0;
-        myVol = myVol0;
-    }
 
     //	Calculate all deterministic discount factors
     void calcDf(vector<T>& dfs) const
@@ -179,7 +148,7 @@ public:
 
     //	Construct with T0, S0, vol and rate
     SimpleBachelier(const Date& today, const double spot, const double vol, const double rate)
-        : myToday(today), mySpot0(spot), myVol0(vol), myRate0(rate)
+        : myToday(today), mySpot(spot), myVol(vol), myRate(rate)
     {}
 
 	//	Clone
@@ -227,7 +196,6 @@ public:
         const override
     {
         //  Compute discount factors
-        resetParams();
         calcDf(numeraires);
         //  Note the ineffiency: in this case, numeraires could be computed only once
 

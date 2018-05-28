@@ -311,18 +311,18 @@ public:
 };
 
 inline void simpleBsScriptVal(
-	const Date&				today,
+	const Date&			today,
 	const double			spot,
 	const double			vol,
 	const double			rate,
-    const bool              normal,     //  true = normal, false = lognormal
-	const map<Date,string>	events,
+    	const bool              	normal,     //  true = normal, false = lognormal
+	const map<Date,string>&		events,
 	const unsigned			numSim,
 	const unsigned			seed,		//	0 = default
 	//	Fuzzy
-	const bool				fuzzy,		//	Use sharp (false) or fuzzy (true) eval
+	const bool			fuzzy,		//	Use sharp (false) or fuzzy (true) eval
 	const double			defEps,		//	Default epsilon, may be redefined by node
-	const bool				skipDoms,	//	Skip domains (unless fuzzy)
+	const bool			skipDoms,	//	Skip domains (unless fuzzy)
 	//	Results
 	vector<string>&			varNames,
 	vector<double>&			varVals)

@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "scriptingEvaluator.h"
@@ -12,7 +28,7 @@ class FuzzyEvaluator : public Evaluator<T>
 	double						myDefEps;
 
 	//	Stack for the fuzzy evaluation of conditions
-	quickStack<T>			    myFuzzyStack;
+	staticStack<T>			    myFuzzyStack;
 
 	//	Temp storage for variables, preallocated for performance
 	//	[i][j] = nested if level i variable j
@@ -149,13 +165,13 @@ public:
 		else
 		{
 			//	Record values of variables to be changed
-			for( auto idx : node.myAffectedVars) myVarStore0[myNestedIfLvl-1][idx]=myVariables[idx];
+			for( auto idx : node.affectedVars) myVarStore0[myNestedIfLvl-1][idx]=myVariables[idx];
 
 			//	Eval "if true" statements
 			for( size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->acceptVisitor( *this);
 			
 			//	Record and reset values of variables to be changed
-			for( auto idx : node.myAffectedVars) 
+			for( auto idx : node.affectedVars) 
 			{
 				myVarStore1[myNestedIfLvl-1][idx] = myVariables[idx];
 				myVariables[idx] = myVarStore0[myNestedIfLvl-1][idx];
@@ -165,7 +181,7 @@ public:
 			if( node.firstElse != -1)
 				for( size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
 			//	Set values of variables to fuzzy values
-			for( auto idx : node.myAffectedVars) myVariables[idx] = dt * myVarStore1[myNestedIfLvl-1][idx] + (1.0-dt) * myVariables[idx];
+			for( auto idx : node.affectedVars) myVariables[idx] = dt * myVarStore1[myNestedIfLvl-1][idx] + (1.0-dt) * myVariables[idx];
 		}
 	
 		//	Decrease nested if level
@@ -192,15 +208,15 @@ public:
 		myDstack.pop();
 
 		//	Discrete case: 0 is a singleton in expr's domain
-		if( node.myDiscrete)
+		if( node.discrete)
 		{
-			myFuzzyStack.push( bFly( expr, node.myLb, node.myRb));
+			myFuzzyStack.push( bFly( expr, node.lb, node.rb));
 		}
 		//	Continuous case: 0 is part of expr's continuous domain
 		else 
 		{
 			//	Effective epsilon: take default unless overwritten on the node
-			double eps = node.myEps < 0 ? myDefEps : node.myEps;
+			double eps = node.eps < 0 ? myDefEps : node.eps;
 
 			//	Butterfly
 			myFuzzyStack.push( bFly( expr, eps));
@@ -222,16 +238,16 @@ public:
 		//	Either 0 is a singleton in expr's domain
 		//	Or 0 is not part of expr's domain, but expr's domain has subdomains left and right of 0
 		//		otherwise the condition would be always true/false
-		if( node.myDiscrete)
+		if( node.discrete)
 		{
 			//	Call spread on the right
-			myFuzzyStack.push( cSpr( expr, node.myLb, node.myRb));	
+			myFuzzyStack.push( cSpr( expr, node.lb, node.rb));
 		}
 		//	Continuous case: 0 is part of expr's continuous domain
 		else
 		{
 			//	Effective epsilon: take default unless overwritten on the node
-			const double eps = node.myEps < 0 ? myDefEps : node.myEps;
+			const double eps = node.eps < 0 ? myDefEps : node.eps;
 
 			//	Call Spread
 			myFuzzyStack.push( cSpr( expr, eps));
@@ -249,7 +265,7 @@ public:
 	//	Negation
 	void visitNot( const NodeNot& node) override
 	{
-		evalArgs( node); 
+        evalArgsRL( node);
 		myFuzzyStack.top() = 1.0 - myFuzzyStack.top();
 	}
 
@@ -257,14 +273,14 @@ public:
 	//	Hard coded proba stlye and->dt(lhs)*dt(rhs), or->dt(lhs)+dt(rhs)-dt(lhs)*dt(rhs)
 	void visitAnd( const NodeAnd& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2f(); 
+        evalArgsRL( node);
+		const auto args=pop2f(); 
 		myFuzzyStack.push( args.first * args.second); 
 	}
 	void visitOr( const NodeOr& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2f(); 
+        evalArgsRL( node);
+		const auto args=pop2f(); 
 		myFuzzyStack.push( args.first + args.second - args.first * args.second); 
 	}
 };

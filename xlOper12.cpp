@@ -5,7 +5,7 @@
 #include <stdlib.h>
 #include <string>
 #include <assert.h>
-#pragma warning ( disable : 4996 ) //  'sprintf', 'strcpy', 'strdup', 'strcat', 'strupr' was declared deprecated
+#pragma warning ( disable : 4996 )
 
 using namespace std;
 
@@ -74,7 +74,6 @@ XLOper12::operator std::string() const
                 return "";
 
         int len = val.str[0];
-        // static char str[32765]; NOT THREAD SAFE
         char *str = new char[len+2];
         
         WideCharToMultiByte(CP_ACP, 0, val.str+1, len, str, len, NULL, NULL);
@@ -137,8 +136,6 @@ unsigned int XLOper12::Size()const
 
 // ----------------------------------------------------------------------------
 
-// do nothing by default on DLL allocated xloper because we allow shallow copies sharing allocated memory
-// (we will release memory when excel tell us it no longer need the objects we return to it)
 XLOper12::~XLOper12() {
         bool bFreeByExcel = ((xltype&xlbitXLFree)!=0);
         bool bFreeByDll   = ((xltype&xlbitDLLFree)!=0) ; 
@@ -158,14 +155,13 @@ void XLOper12::ExplicitFree()
 {
         bool bFreeByExcel = ((xltype&xlbitXLFree)!=0);
         bool bFreeByDll   = ((xltype&xlbitDLLFree)!=0) ; 
-        assert( !(bFreeByExcel&&bFreeByDll) ); // exclusive ownership
-        assert( bFreeByExcel || bFreeByDll || true );  // ownership expected
+        assert( !(bFreeByExcel&&bFreeByDll) ); 
+        assert( bFreeByExcel || bFreeByDll || true );  
         
         if (bFreeByDll) {
                 switch(Type()) {
 
                 case xltypeErr:
-                        // errors are statics: do not free
                         return;
                         break;
 
@@ -176,7 +172,6 @@ void XLOper12::ExplicitFree()
                         break;
                 
                 case xltypeMulti:
-                        // free embedded strings first
                         int n = val.array.rows*val.array.columns;
                         for (int i=0; i<n; i++) {
                                 if (val.array.lparray[i].xltype & xltypeStr) {
@@ -185,7 +180,6 @@ void XLOper12::ExplicitFree()
                                         xll12_alloc_counter_string--;
                                 }
                         }       
-                        // free array
                         delete[] (XLOper12*)val.array.lparray;
                         val.array.rows = val.array.columns = 0;
                         val.array.lparray = NULL;
@@ -193,9 +187,6 @@ void XLOper12::ExplicitFree()
                         break;
                 }
 
-
-                // we can delete the xloper itself if it has been allocated on the heap (eg we don't keep results in a static variable)
-                // this is a needed if we want to enable multi-threading (free bit must be set in Excel layer)
                 xll12_alloc_counter_return--;
                 delete this;
         }

@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "scriptingNodes.h"
@@ -6,10 +22,12 @@
 #include "scriptingVarIndexer.h"
 #include "scriptingDebugger.h"
 #include "scriptingEvaluator.h"
+#include "scriptingCompiler.h"
 #include "scriptingFuzzyEval.h"
 #include "scriptingScenarios.h"
 #include "scriptingDomainProc.h"
 #include "scriptingConstCondProc.h"
+#include "scriptingConstProcessor.h"
 
 using namespace std;
 #include <vector>
@@ -24,9 +42,14 @@ typedef int Date;
 
 class Product
 {
-	vector<Date>		myEventDates;
-	vector<Event>		myEvents;
-	vector<string>		myVariables;
+	vector<Date>		        myEventDates;
+	vector<Event>		        myEvents;
+    vector<string>		        myVariables;
+
+    //  Compiled form
+    vector<vector<int>>         myNodeStreams;
+    vector<vector<const void*>> myDataStreams;
+    vector<vector<double>>      myConstStreams;
 
 public:
 
@@ -128,7 +151,24 @@ public:
 		}
 	}
 
-	//	Index all variables
+    //	Evaluate all compiled statements in all events
+    template <class T>
+    void evaluateCompiled(
+        const Scenario<T>& scen, 
+        EvalState<T>& state) const
+    {
+        //	Initialize state
+        state.init();
+
+        //	Loop over events
+        for (auto i = 0; i<myEvents.size(); ++i)
+        {
+            //	Evaluate the compiled events
+            evalCompiled(myNodeStreams[i], myConstStreams[i], myDataStreams[i], scen[i], state);
+        }
+    }
+    
+    //	Index all variables
 	void indexVariables()
 	{
 		//	Our indexer
@@ -164,6 +204,15 @@ public:
 		visit( domProc);
 	}
 
+    //  Const process, identify (but not remove) all constant nodes
+    void constProcess()
+    {
+        ConstProcessor cProc( myVariables.size());
+
+        //	Visit
+        visit(cProc);
+    }
+
 	//	Const condition process, remove all conditions that are always true or always false
 	void constCondProcess()
 	{
@@ -184,6 +233,41 @@ public:
 			}
 		}
 	}
+
+    //	Compile into functions, one per event date
+    void compile()
+    {
+        //  First, identify constants
+        constProcess();
+
+        //  One per event date
+        myNodeStreams.clear();
+        myConstStreams.clear();
+        myDataStreams.clear();
+        myNodeStreams.reserve(myEvents.size());
+        myConstStreams.reserve(myEvents.size());
+        myDataStreams.reserve(myEvents.size());
+
+        //	Visit
+        for (auto& evt : myEvents)
+        {
+            //	The compiler
+            Compiler comp;
+
+            //	Loop over statements in event
+            for (auto& stat : evt)
+            {
+                //	Visit statement
+                comp.visit(stat);
+            }
+
+            //  Get compiled function
+            auto& p = comp.streams();
+            myNodeStreams.push_back(get<0>(p));
+            myConstStreams.push_back(get<1>(p));
+            myDataStreams.push_back(get<2>(p));
+        }
+    }
 
 	//	All preprocessing
 	size_t preProcess( const bool fuzzy, const bool skipDoms)

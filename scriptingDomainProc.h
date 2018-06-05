@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "functDomain.h"
@@ -36,7 +52,7 @@ class DomainProcessor : public Visitor
 	vector<Domain>			myVarDomains;
 
 	//	Stack of domains for expressions
-	quickStack<Domain>		myDomStack;
+	staticStack<Domain>		myDomStack;
 
 	//	Stack of always true/false properties for conditions
 	enum CondProp
@@ -45,7 +61,7 @@ class DomainProcessor : public Visitor
 		alwaysFalse,
 		trueOrFalse
 	};
-	quickStack<CondProp>	myCondStack;
+	staticStack<CondProp>	myCondStack;
 
 	//	LHS variable being visited?
 	bool					myLhsVar;
@@ -176,35 +192,35 @@ public:
 		//	Always true / false?
 		if( !dom.canBeZero())
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 
 			myCondStack.push( alwaysFalse);
 		}
 		else if( !dom.canBeNonZero())
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			myCondStack.push( alwaysTrue);
 		}
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 			myCondStack.push( trueOrFalse);
 
 			if( myFuzzy)
 			{
 				//	Continuous or discrete?
-				node.myDiscrete = dom.zeroIsDiscrete();
+				node.discrete = dom.zeroIsDiscrete();
 
 				//	Discrete
-				if( node.myDiscrete)
+				if( node.discrete)
 				{
-					bool subDomRightOfZero = dom.smallestPosLb( node.myRb, true);
-					if( !subDomRightOfZero) node.myRb = 0.5;
+					bool subDomRightOfZero = dom.smallestPosLb( node.rb, true);
+					if( !subDomRightOfZero) node.rb = 0.5;
 
-					bool subDomLeftOfZero = dom.biggestNegRb( node.myLb, true);
-					if( !subDomLeftOfZero) node.myLb = -0.5;
+					bool subDomLeftOfZero = dom.biggestNegRb( node.lb, true);
+					if( !subDomLeftOfZero) node.lb = -0.5;
 				}
 			}
 		}
@@ -217,8 +233,8 @@ public:
 			ofstream ofs( string( "c:\\temp\\equal") + to_string( iii) + ".txt");
 			ofs << "Equality " << iii << endl;
 			ofs << "Domain = " << dom << endl;
-			ofs << "Node discrete = " << node.myDiscrete << endl;
-			if( node.myDiscrete) ofs << "Node lB, rB = " << node.myLb << "," << node.myRb << endl;
+			ofs << "Node discrete = " << node.discrete << endl;
+			if( node.discrete) ofs << "Node lB, rB = " << node.lb << "," << node.rb << endl;
 		}
 #endif		
 		//	End of dump
@@ -234,19 +250,19 @@ public:
 		
 		if( cp == alwaysTrue)
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 			myCondStack.push( alwaysFalse);
 		}
 		else if( cp == alwaysFalse)
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			myCondStack.push( alwaysTrue);
 		}
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 			myCondStack.push( trueOrFalse);
 		}
 	}
@@ -262,49 +278,49 @@ public:
 		//	Always true / false?
 		if( !dom.canBePositive( strict))
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 			myCondStack.push( alwaysFalse);
 		}
 		else if( !dom.canBeNegative( !strict))
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			myCondStack.push( alwaysTrue);
 		}
 		//	Can be true or false
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 			myCondStack.push( trueOrFalse);
 
 			if( myFuzzy)
 			{
 				//	Continuous or discrete?
-				node.myDiscrete = !dom.canBeZero() || dom.zeroIsDiscrete();
+				node.discrete = !dom.canBeZero() || dom.zeroIsDiscrete();
 
 				//	Fuzzy logic processing
-				if( node.myDiscrete)
+				if( node.discrete)
 				{
 					//	Case 1: expr cannot be zero
 					if( !dom.canBeZero())
 					{
 						//		we know we have subdomains on the left and on the right of 0
-						dom.smallestPosLb( node.myRb, true);
-						dom.biggestNegRb( node.myLb, true);
+						dom.smallestPosLb( node.rb, true);
+						dom.biggestNegRb( node.lb, true);
 					}
 					//	Case 2: {0} is a singleton
 					else
 					{
 						if( strict)
 						{
-							node.myLb = 0.0;
-							dom.smallestPosLb( node.myRb, true);
+							node.lb = 0.0;
+							dom.smallestPosLb( node.rb, true);
 						}
 						else
 						{
-							node.myRb = 0.0;
-							dom.biggestNegRb( node.myLb, true);
+							node.rb = 0.0;
+							dom.biggestNegRb( node.lb, true);
 						}
 					}
 				}
@@ -319,8 +335,8 @@ public:
 			ofstream ofs( string( "c:\\temp\\sup") + (strict? "": "equal") + to_string( iii) + ".txt");
 			ofs << "Inequality " << iii << endl;
 			ofs << "Domain = " << dom << endl;
-			ofs << "Node discrete = " << node.myDiscrete << endl;
-			if( node.myDiscrete) ofs << "Node lB, rB = " << node.myLb << "," << node.myRb << endl;
+			ofs << "Node discrete = " << node.discrete << endl;
+			if( node.discrete) ofs << "Node lB, rB = " << node.lb << "," << node.rb << endl;
 		}
 #endif	
 		//	End of dump
@@ -348,19 +364,19 @@ public:
 		
 		if( cp1 == alwaysTrue && cp2 == alwaysTrue)
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			myCondStack.push( alwaysTrue);
 		}
 		else if( cp1 == alwaysFalse || cp2 == alwaysFalse)
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 			myCondStack.push( alwaysFalse);
 		}
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 			myCondStack.push( trueOrFalse);
 		}
 	}
@@ -374,19 +390,19 @@ public:
 		
 		if( cp1 == alwaysTrue || cp2 == alwaysTrue)
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			myCondStack.push( alwaysTrue);
 		}
 		else if( cp1 == alwaysFalse && cp2 == alwaysFalse)
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 			myCondStack.push( alwaysFalse);
 		}
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 			myCondStack.push( trueOrFalse);
 		}
 	}
@@ -406,43 +422,43 @@ public:
 		
 		if( cp == alwaysTrue)
 		{
-			node.myAlwaysTrue = true;
-			node.myAlwaysFalse = false;
+			node.alwaysTrue = true;
+			node.alwaysFalse = false;
 			//	Visit "if true" statements
 			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->acceptVisitor( *this);
 		}
 		else if( cp == alwaysFalse)
 		{
-			node.myAlwaysTrue = false;
-			node.myAlwaysFalse = true;
+			node.alwaysTrue = false;
+			node.alwaysFalse = true;
 			//	Visit "if false" statements, if any
-			if( node.firstElse != -1) 
+			if( node.firstElse != -1)
 				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
 		}
 		else
 		{
-			node.myAlwaysTrue = node.myAlwaysFalse = false;
+			node.alwaysTrue = node.alwaysFalse = false;
 
 			//	Record variable domain before if statements are executed
-			vector<Domain> domStore0( node.myAffectedVars.size());
-			for(size_t i=0; i<node.myAffectedVars.size(); ++i) domStore0[i] = myVarDomains[node.myAffectedVars[i]];
+			vector<Domain> domStore0( node.affectedVars.size());
+			for(size_t i=0; i<node.affectedVars.size(); ++i) domStore0[i] = myVarDomains[node.affectedVars[i]];
 
 			//	Execute if statements
 			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->acceptVisitor( *this);
 
 			//	Record variable domain after if statements are executed
-			vector<Domain> domStore1( node.myAffectedVars.size());
-			for(size_t i=0; i<node.myAffectedVars.size(); ++i) domStore1[i] = move( myVarDomains[node.myAffectedVars[i]]);
+			vector<Domain> domStore1( node.affectedVars.size());
+			for(size_t i=0; i<node.affectedVars.size(); ++i) domStore1[i] = move( myVarDomains[node.affectedVars[i]]);
 
 			//	Reset variable domains
-			for(size_t i=0; i<node.myAffectedVars.size(); ++i) myVarDomains[node.myAffectedVars[i]] = move( domStore0[i]);
+			for(size_t i=0; i<node.affectedVars.size(); ++i) myVarDomains[node.affectedVars[i]] = move( domStore0[i]);
 
 			//	Execute else statements if any
-			if( node.firstElse != -1) 
+			if( node.firstElse != -1)
 				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
 
 			//	Merge domains
-			for(size_t i=0; i<node.myAffectedVars.size(); ++i) myVarDomains[node.myAffectedVars[i]].addDomain( domStore1[i]);
+			for(size_t i=0; i<node.affectedVars.size(); ++i) myVarDomains[node.affectedVars[i]].addDomain( domStore1[i]);
 		}
 	}
 
@@ -458,7 +474,7 @@ public:
 
 		//	Write RHS domain into variable
 		myVarDomains[myLhsVarIdx] = myDomStack.top();
-
+        
 		//	Pop
 		myDomStack.pop();
 	}
@@ -506,7 +522,7 @@ public:
 
 	void visitConst( NodeConst& node) override
 	{
-		myDomStack.push( node.val);
+		myDomStack.push( node.constVal);
 	}
 
 	//	Scenario related

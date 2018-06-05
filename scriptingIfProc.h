@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 //	If processor
@@ -18,7 +34,7 @@ class IfProcessor : public Visitor
 {
 	//	Top of the stack: current (possibly nested) if being processed
 	//	Each element in stack: set of indices of variables modified by the corresponding if and nested ifs
-	quickStack<set<size_t>>	    myVarStack;
+	staticStack<set<size_t>>    myVarStack;
 
 	//	Nested if level, 0: not in an if, 1: in the outermost if, 2: if nested in another if, etc.
     size_t					    myNestedIfLvl;
@@ -51,8 +67,8 @@ public:
 		for(size_t i = 1; i < node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
 
 		//	Copy the top of the stack into the node
-		node.myAffectedVars.clear();
-		copy( myVarStack.top().begin(), myVarStack.top().end(), back_inserter( node.myAffectedVars));
+		node.affectedVars.clear();
+		copy( myVarStack.top().begin(), myVarStack.top().end(), back_inserter( node.affectedVars));
 
 		//	Pop
 		myVarStack.pop();
@@ -62,7 +78,7 @@ public:
 
 		//	If not outmost if, copy changed vars into the immediately outer if 
 		//	Variables changed in a nested if are also changed in the englobing if
-		if( myNestedIfLvl) copy( node.myAffectedVars.begin(), node.myAffectedVars.end(), inserter( myVarStack.top(), myVarStack.top().end()));
+		if( myNestedIfLvl) copy( node.affectedVars.begin(), node.affectedVars.end(), inserter( myVarStack.top(), myVarStack.top().end()));
 	}
 
 	void visitAssign( NodeAssign& node) override

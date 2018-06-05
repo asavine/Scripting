@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 using namespace std;
@@ -10,9 +26,10 @@ class constVisitor;
 
 struct Node;
 
-typedef unique_ptr<Node> ExprTree;
+using ExprTree = unique_ptr<Node>;
 
-//	Base node
+//	Base nodes
+
 struct Node
 {
 	vector<ExprTree>	arguments;
@@ -23,18 +40,38 @@ struct Node
 	virtual void acceptVisitor( constVisitor& visitor) const = 0;	
 };
 
+//  Nodes that return a number
+struct dNode : public Node
+{
+    bool                isConst = false;
+    double              constVal;
+};
+
+//  Action
+struct aNode : public Node {};
+
+//  Return a bool
+struct bNode : public Node {};
+
 //	Factories
 
-template <class NodeType>
-unique_ptr<NodeType> make_node()
+template <typename NodeType, typename... Args>
+unique_ptr<NodeType> make_node(Args&&... args)
 {
-	return unique_ptr<NodeType>( new NodeType);
+	return unique_ptr<NodeType>( new NodeType(forward<Args>(args)...));
 }
 
-template <class NodeType>
-unique_ptr<Node> make_base_node()
+template <typename NodeType, typename... Args>
+unique_ptr<Node> make_base_node(Args&&... args)
 {
-	return unique_ptr<Node>( new NodeType);
+	return unique_ptr<Node>( new NodeType(forward<Args>(args)...));
+}
+
+//  Downcast Node to concrete type, crashes if used on another Node type
+template<class NODE>
+const NODE* downcast(const unique_ptr<Node>& node)
+{
+    return reinterpret_cast<const NODE*>(node.get());
 }
 
 //	Build binary of the kind in the template parameter, and set its arguments to lhs and rhs trees
@@ -64,233 +101,217 @@ unique_ptr<NodeType> buildConcreteBinary( ExprTree& lhs, ExprTree& rhs)
 }
 
 //	Collection of statements
-struct NodeCollect : public Node
+struct NodeCollect : public aNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	True
-struct NodeTrue: public Node
+struct NodeTrue: public bNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-
 //	False
-struct NodeFalse : public Node
+struct NodeFalse : public bNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Unary +/-
-struct NodeUplus : public Node 
+struct NodeUplus : public dNode 
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeUminus : public Node 
+struct NodeUminus : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Math operators
-struct NodeAdd : public Node 
+struct NodeAdd : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeSubtract : public Node 
+struct NodeSubtract : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeMult : public Node 
+struct NodeMult : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeDiv : public Node 
+struct NodeDiv : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodePow : public Node 
+struct NodePow : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Math functions
-struct NodeLog : public Node
+struct NodeLog : public dNode
 	 
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeSqrt : public Node	 
+struct NodeSqrt : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeMax : public Node 
+struct NodeMax : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeMin : public Node 
+struct NodeMin : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Functional if
-struct NodeSmooth : public Node 
+struct NodeSmooth : public dNode
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Comparators
-struct NodeEqual : public Node 
-{
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-	//	Fuzzying stuff
-	bool				myDiscrete;	//	Continuous or discrete
-	//	Continuous eps
-	double				myEps;		
-	//	Discrete butterfly bounds
-	double				myLb;
-	double				myRb;
-	//	End of fuzzying stuff
 
+struct condNode : public bNode
+{
+    bool				alwaysTrue;
+    bool				alwaysFalse;
+};
+
+struct compNode : public condNode
+{
+    //	Fuzzying stuff
+    bool				discrete;	//	Continuous or discrete
+                                    //	Continuous eps
+    double				eps;
+    //	Discrete butterfly bounds
+    double				lb;
+    double				rb;
+    //	End of fuzzying stuff
+};
+
+struct NodeEqual : public compNode
+{
+    void acceptVisitor(Visitor& visitor) override;
+    void acceptVisitor(constVisitor& visitor) const override;
+};
+
+struct NodeSuperior : public compNode
+{
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeNot : public Node 
+struct NodeSupEqual : public compNode
 {
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeSuperior : public Node 
+//	And/or/not
+
+struct NodeAnd : public condNode
 {
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-
-	//	Fuzzying stuff
-	bool				myDiscrete;	//	Continuous or discrete
-	//	Continuous eps
-	double				myEps;		
-	//	Discrete call spread bounds
-	double				myLb;
-	double				myRb;
-	//	End of fuzzying stuff
-
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeSupEqual : public Node 
+struct NodeOr : public condNode
 {
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-
-	//	Fuzzying stuff
-	bool				myDiscrete;	//	Continuous or discrete
-	//	Continuous eps
-	double				myEps;		
-	//	Discrete call spread bounds
-	double				myLb;
-	double				myRb;
-	//	End of fuzzying stuff
-
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-//	And/or
-
-struct NodeAnd : public Node 
+struct NodeNot : public condNode
 {
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodeOr : public Node 
-{
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
-
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
+    void acceptVisitor(Visitor& visitor) override;
+    void acceptVisitor(constVisitor& visitor) const override;
 };
 
 //	Assign, Pays
-struct NodeAssign : public Node 
+struct NodeAssign : public aNode 
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodePays : public Node 
+struct NodePays : public aNode 
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	Market access
-struct NodeSpot : public Node 
+struct NodeSpot : public dNode 
 {
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
 //	If
-struct NodeIf : public Node
+struct NodeIf : public aNode
 {
-	int					firstElse;
-	//	For fuzzy eval: indices of variables affected in statements, including nested
-	vector<unsigned>	myAffectedVars;		
-	//	Always true/false as per domain processor
-	bool				myAlwaysTrue;
-	bool				myAlwaysFalse;
+    int					firstElse;
+    //	For fuzzy eval: indices of variables affected in statements, including nested
+    vector<unsigned>	affectedVars;
+    //	Always true/false as per domain processor
+    bool				alwaysTrue;
+    bool				alwaysFalse;
 
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeConst : public Node
+struct NodeConst : public dNode
 {
-	double				val;
+    NodeConst(const double val)
+    {
+        isConst = true;
+        constVal = val;
+    }
 
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeVar : public Node
+struct NodeVar : public dNode
 {
-	string				name;
-	unsigned			index;
+    NodeVar()
+    {
+        isConst = true;
+        constVal = 0.0;
+    }
+
+    string				name;
+    unsigned			index;
 
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;

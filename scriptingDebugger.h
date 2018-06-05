@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "scriptingNodes.h"
@@ -8,7 +24,7 @@
 class Debugger : public constVisitor
 {
 	string					myPrefix;
-	quickStack<string>		myStack;
+	staticStack<string>		myStack;
 
 	//	The main function call from every node visitor
 	void debug( const Node& node, const string& nodeId)
@@ -84,14 +100,14 @@ public:
 	{
 		string s="EQUALZERO";
 
-		if( !node.myDiscrete) 
+		if( !node.discrete)
 		{
-			s+= "[CONT,EPS=" + to_string( node.myEps) + "]";
+			s+= "[CONT,EPS=" + to_string( node.eps) + "]";
 		}
 		else 
 		{
 			s+= "[DISCRETE,";
-			s+= "BOUNDS=" + to_string( node.myLb) + "," + to_string( node.myRb) + "]";
+			s+= "BOUNDS=" + to_string( node.lb) + "," + to_string( node.rb) + "]";
 		}
 		debug( node, s); 
 	}
@@ -105,14 +121,14 @@ public:
 	void visitSuperior( const NodeSuperior& node) override 
 	{
 		string s = "GTZERO";
-		if( !node.myDiscrete) 
+		if( !node.discrete)
 		{
-			s+= "[CONT,EPS=" + to_string( node.myEps) + "]";
+			s+= "[CONT,EPS=" + to_string( node.eps) + "]";
 		}
 		else 
 		{
 			s+= "[DISCRETE,";
-			s+= "BOUNDS=" + to_string( node.myLb) + "," + to_string( node.myRb) + "]";
+			s+= "BOUNDS=" + to_string( node.lb) + "," + to_string( node.rb) + "]";
 		}
 		debug( node, s); 
 	}
@@ -120,14 +136,14 @@ public:
 	void visitSupEqual( const NodeSupEqual& node) override 
 	{
 		string s = "GTEQUALZERO";
-		if( !node.myDiscrete) 
+		if( !node.discrete)
 		{
-			s+= "[CONT,EPS=" + to_string( node.myEps) + "]";
+			s+= "[CONT,EPS=" + to_string( node.eps) + "]";
 		}
 		else 
 		{
 			s+= "[DISCRETE,";
-			s+= "BOUNDS=" + to_string( node.myLb) + "," + to_string( node.myRb) + "]";
+			s+= "BOUNDS=" + to_string( node.lb) + "," + to_string( node.rb) + "]";
 		}
 		debug( node, s); 
 	}
@@ -161,7 +177,7 @@ public:
 
 	void visitConst( const NodeConst& node) override 
 	{
-		debug(node, string( "CONST[")+to_string( node.val)+']');
+		debug(node, string( "CONST[")+to_string( node.constVal)+']');
 	}
 	void visitVar( const NodeVar& node) override 
 	{

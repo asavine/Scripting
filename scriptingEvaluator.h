@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include <iostream>
@@ -19,8 +35,8 @@ protected:
 	vector<T>				    myVariables;
 
 	//	Stacks
-	quickStack<T>			    myDstack;
-	quickStack<bool>			myBstack;
+	staticStack<T>			    myDstack;
+    staticStack<char>		    myBstack;
 
 	//	LHS variable being visited?
 	bool						myLhsVar;
@@ -33,9 +49,10 @@ protected:
 	size_t					    myCurEvt;
 
 	//	Visit arguments, right to left
-	void evalArgs( const Node& node)
+	void evalArgsRL( const Node& node)
 	{
-		for( auto it = node.arguments.rbegin(); it != node.arguments.rend(); ++it) 
+        const auto end = node.arguments.rend();
+		for( auto it = node.arguments.rbegin(); it != end; ++it) 
 			(*it)->acceptVisitor( *this);
 	}
 
@@ -127,43 +144,43 @@ public:
 	
 	void visitAdd( const NodeAdd& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2(); 
+		evalArgsRL( node); 
+		const auto args=pop2(); 
 		myDstack.push( args.first+args.second); 
 	}
 	void visitSubtract( const NodeSubtract& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2(); 
+		evalArgsRL( node); 
+		const auto args=pop2(); 
 		myDstack.push( args.first-args.second); 
 	}
 	void visitMult( const NodeMult& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2(); 
+		evalArgsRL( node); 
+		const auto args=pop2(); 
 		myDstack.push( args.first*args.second); 
 	}
 	void visitDiv( const NodeDiv& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2(); 
+		evalArgsRL( node); 
+		const auto args=pop2(); 
 		myDstack.push( args.first/args.second); 
 	}
 	void visitPow( const NodePow& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2(); 
+		evalArgsRL( node); 
+		const auto args=pop2(); 
 		myDstack.push( pow( args.first, args.second)); 
 	}
 
 	//	Unaries
-	void visitUplus( const NodeUplus& node) override { evalArgs( node); }
-	void visitUminus( const NodeUminus& node) override { evalArgs( node); myDstack.top() *= -1; }
+	void visitUplus( const NodeUplus& node) override { evalArgsRL( node); }
+	void visitUminus( const NodeUminus& node) override { evalArgsRL( node); myDstack.top() *= -1; }
 
 	//	Functions
 	void visitLog( const NodeLog& node) override
 	{
-		evalArgs( node);
+		evalArgsRL( node);
 
 		const T res = log( myDstack.top());
 		myDstack.pop();
@@ -172,7 +189,7 @@ public:
 	}
 	void visitSqrt( const NodeSqrt& node) override
 	{
-		evalArgs( node);
+		evalArgsRL( node);
 
 		const T res = sqrt( myDstack.top());
 		myDstack.pop();
@@ -181,12 +198,13 @@ public:
 	}
 	void visitMax( const NodeMax& node) override
 	{
-		evalArgs( node);
+		evalArgsRL( node);
 		
 		T M = myDstack.top();
 		myDstack.pop();
 		
-		for( size_t i=1; i<node.arguments.size(); ++i)
+        const size_t n = node.arguments.size();
+		for( size_t i=1; i<n; ++i)
 		{
 			M = max( M, myDstack.top());
 			myDstack.pop();
@@ -196,12 +214,13 @@ public:
 	}
 	void visitMin( const NodeMin& node) override
 	{
-		evalArgs( node);
+		evalArgsRL( node);
 		
 		T m = myDstack.top();
 		myDstack.pop();
 		
-		for( size_t i=1; i<node.arguments.size(); ++i)
+        const size_t n = node.arguments.size();
+		for( size_t i=1; i<n; ++i)
 		{
 			m = min( m, myDstack.top());
 			myDstack.pop();
@@ -258,42 +277,42 @@ public:
 
 	void visitEqual( const NodeEqual& node) override
 	{
-		evalArgs( node); 
+		evalArgsRL( node); 
 		const T res = myDstack.top();
 		myDstack.pop();
 		myBstack.push( fabs( res) < EPS);
 	}
 	void visitNot( const NodeNot& node) override
 	{ 
-		evalArgs( node); 
+		evalArgsRL( node); 
 		const bool res = myBstack.top();
 		myBstack.pop();
 		myBstack.push( !res); 
 	}
 	void visitSuperior( const NodeSuperior& node) override
 	{ 
-		evalArgs( node); 
+		evalArgsRL( node); 
 		const T res = myDstack.top();
 		myDstack.pop();
 		myBstack.push( res > EPS); 
 	}
 	void visitSupEqual( const NodeSupEqual& node) override
 	{ 
-		evalArgs( node); 
+		evalArgsRL( node); 
 		const T res = myDstack.top();
 		myDstack.pop();
 		myBstack.push( res > -EPS); 
 	}
 	void visitAnd( const NodeAnd& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2b(); 
+		evalArgsRL( node); 
+		const auto args=pop2b(); 
 		myBstack.push( args.first && args.second); 
 	}
 	void visitOr( const NodeOr& node) override
 	{ 
-		evalArgs( node); 
-		const auto& args=pop2b(); 
+		evalArgsRL( node); 
+		const auto args=pop2b(); 
 		myBstack.push( args.first || args.second); 
 	}
 	
@@ -318,7 +337,8 @@ public:
 		}
 		else if( node.firstElse != -1)
 		{
-			for( auto i=node.firstElse; i<node.arguments.size(); ++i)
+            const size_t n = node.arguments.size();
+			for( auto i=node.firstElse; i<n; ++i)
 			{
 				node.arguments[i]->acceptVisitor( *this);
 			}
@@ -373,7 +393,7 @@ public:
 
 	void visitConst( const NodeConst& node) override
 	{
-		myDstack.push( node.val);
+		myDstack.push( node.constVal);
 	}
 
 	//	Scenario related

@@ -1,10 +1,29 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "scriptingScenarios.h"
-#include "scriptingEvents.h"
+#include "scriptingProduct.h"
 #include "scriptingFuzzyEval.h"
 
 #include "cpp11basicRanGen.h"
+
+#include <algorithm>
+#include <numeric>
 
 //  Base model for Monte-Carlo simulations
 template <class T>
@@ -300,13 +319,15 @@ inline void simpleBsScriptVal(
 	const double			vol,
 	const double			rate,
     const bool              normal,     //  true = normal, false = lognormal
-	const map<Date,string>	events,
+	const map<Date,string>& events,
 	const unsigned			numSim,
 	const unsigned			seed,		//	0 = default
 	//	Fuzzy
 	const bool				fuzzy,		//	Use sharp (false) or fuzzy (true) eval
 	const double			defEps,		//	Default epsilon, may be redefined by node
 	const bool				skipDoms,	//	Skip domains (unless fuzzy)
+    //  Compile?
+    const bool              compile,
 	//	Results
 	vector<string>&			varNames,
 	vector<double>&			varVals)
@@ -319,12 +340,21 @@ inline void simpleBsScriptVal(
 	prd.parseEvents( events.begin(), events.end());
 	unsigned maxNestedIfs = prd.preProcess( fuzzy, skipDoms);
 
-	//	Build evaluator and scenarios
+	//	Build scenarios
 	unique_ptr<Scenario<double>> scen = prd.buildScenario<double>();
 
+    //  Build evaluator or compile
 	unique_ptr<Evaluator<double>> eval;
-	if( fuzzy) eval = prd.buildFuzzyEvaluator<double>( maxNestedIfs, defEps);
-	else eval = prd.buildEvaluator<double>();
+    EvalState<double> state(prd.varNames().size());
+    if (compile)
+    {
+        prd.compile();
+    }
+    else
+    {
+        if (fuzzy) eval = prd.buildFuzzyEvaluator<double>(maxNestedIfs, defEps);
+        else eval = prd.buildEvaluator<double>();
+    }
 
     //  Initialize model and random generator
     BasicRanGen random( seed);
@@ -345,12 +375,158 @@ inline void simpleBsScriptVal(
 	{
 		//	Generate next scenario into scen
 		simulator.nextScenario( *scen);
-		//	Evaluate product 
-		prd.evaluate( *scen, *eval);
-		//	Update results
-		for(size_t v=0; v<varVals.size(); ++v)
-		{
-			varVals[v] += eval->varVals()[v] / numSim;
-		}
+		
+        if (compile)
+        {
+            //	Evaluate product 
+            prd.evaluateCompiled(*scen, state);
+            //	Update results
+            const size_t n = varVals.size();
+            for (size_t v = 0; v<n; ++v)
+            {
+                varVals[v] += state.variables[v];
+            }
+        }
+        else
+        {
+            //	Evaluate product 
+            prd.evaluate(*scen, *eval);
+            //	Update results
+            const size_t n = varVals.size();
+            for (size_t v = 0; v<n; ++v)
+            {
+                varVals[v] += eval->varVals()[v];
+            }
+        }
 	}
+
+    for (auto& v : varVals) v /= numSim;
+}
+
+//  Hard coded barrier
+inline void simpleBsBarVal(
+    const Date&				today,
+    const double			spot,
+    const double			vol,
+    const double			rate,
+    const bool              normal,     //  true = normal, false = lognormal
+    const Date              mat,
+    const vector<Date>&     barDates,
+    const double            strike,
+    const double            bar,
+    const unsigned			numSim,
+    const unsigned			seed,		//	0 = default
+    double&                 val)
+{
+    //  Initialize model and random generator
+    BasicRanGen random(seed);
+    unique_ptr<Model<double>> model;
+    if (normal) model.reset(new SimpleBachelier<double>(today, spot, vol, rate));
+    else model.reset(new SimpleBlackScholes<double>(today, spot, vol, rate));
+
+    //	Initialize simulator
+    MonteCarloSimulator<double> simulator(*model, random);
+    vector<Date> eventDates = barDates;
+    unsigned lastBar = eventDates.size();
+    if (mat > barDates.back()) eventDates.push_back(mat);
+    vector<double> spots(eventDates.size()), numeraires(eventDates.size());
+    simulator.init(eventDates);
+
+    //	Loop over simulations
+    double res = 0.0;
+    for (size_t i = 0; i<numSim; ++i)
+    {
+        //	Generate next scenario into scen
+        simulator.simulateOnePath(spots, numeraires);
+        //	Evaluate barrier
+        
+        bool breached = false;
+        for (size_t i = 0; i < lastBar; ++i)
+        {
+            if (spots[i] > bar)
+            {
+                breached = true;
+                break;
+            }
+        }
+        if (!breached && spots.back() > strike) res += (spots.back() - strike) / numeraires.back();
+    }
+
+    val = res / numSim;
+}
+
+//  Hard coded asian
+inline void simpleBsAsianVal(
+    const Date&				today,
+    const double			spot,
+    const double			vol,
+    const double			rate,
+    const bool              normal,     //  true = normal, false = lognormal
+    const vector<Date>&     asDates,
+    const unsigned			numSim,
+    const unsigned			seed,		//	0 = default
+    double&                 val)
+{
+    //  Initialize model and random generator
+    BasicRanGen random(seed);
+    unique_ptr<Model<double>> model;
+    if (normal) model.reset(new SimpleBachelier<double>(today, spot, vol, rate));
+    else model.reset(new SimpleBlackScholes<double>(today, spot, vol, rate));
+
+    //	Initialize simulator
+    MonteCarloSimulator<double> simulator(*model, random);
+    vector<double> spots(asDates.size()), numeraires(asDates.size());
+    simulator.init(asDates);
+
+    //	Loop over simulations
+    double res = 0.0;
+    for (size_t i = 0; i<numSim; ++i)
+    {
+        //	Generate next scenario into scen
+        simulator.simulateOnePath(spots, numeraires);
+        //	Evaluate asian
+        const double ave = accumulate(spots.begin(), spots.end(), 0.0) / spots.size();
+        if (spots.back() > ave) res += (spots.back() - ave) / numeraires.back();
+    }
+
+    val = res / numSim;
+}
+
+//  Hard coded asian
+inline void simpleBsCallsVal(
+    const Date&				today,
+    const double			spot,
+    const double			vol,
+    const double			rate,
+    const bool              normal,     //  true = normal, false = lognormal
+    const Date              mat,
+    const vector<double>&   strikes,
+    const unsigned			numSim,
+    const unsigned			seed,		//	0 = default
+    vector<double>&         vals)
+{
+    //  Initialize model and random generator
+    BasicRanGen random(seed);
+    unique_ptr<Model<double>> model;
+    if (normal) model.reset(new SimpleBachelier<double>(today, spot, vol, rate));
+    else model.reset(new SimpleBlackScholes<double>(today, spot, vol, rate));
+
+    //	Initialize simulator
+    MonteCarloSimulator<double> simulator(*model, random);
+    vector<double> spots(1), numeraires(1);
+    simulator.init(vector<Date>{mat});
+
+    //	Loop over simulations
+    const size_t nk = strikes.size();
+    vals.resize(nk, 0);
+    for (size_t i = 0; i<numSim; ++i)
+    {
+        //	Generate next scenario into scen
+        simulator.simulateOnePath(spots, numeraires);
+        const double s = spots[0], num = numeraires[0];
+        //	Evaluate calls
+        for (size_t j = 0; j < nk; ++j) if (s > strikes[j]) vals[j] += (s - strikes[j]) / num;
+    }
+
+    for (auto& val: vals) val /= numSim;
 }

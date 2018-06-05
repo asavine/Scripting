@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include <string>
@@ -9,7 +25,7 @@ using namespace std;
 #include <algorithm>
 
 #include "scriptingNodes.h"
-#include "scriptingEvents.h"
+#include "scriptingProduct.h"
 
 Event parse( const string& eventString);
 vector<string> tokenize( const string& str);
@@ -261,8 +277,7 @@ class Parser
 		double v = stod( *cur);
 
 		//	Build the const node
-		auto top = make_node<NodeConst>();
-		top->val = v;
+		auto top = make_node<NodeConst>(v);
 
 		//	Advance over var and return
 		++cur;
@@ -391,7 +406,7 @@ class Parser
 		auto top = make_node<NodeEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
-		top->myEps = eps;
+		top->eps = eps;
 		return move( top);
 	}
 	static ExprTree buildDifferent( ExprTree& lhs, ExprTree& rhs, const double eps)
@@ -408,7 +423,7 @@ class Parser
 		auto top = make_node<NodeSuperior>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
-		top->myEps = eps;
+		top->eps = eps;
 		return move( top);
 	}
 	static ExprTree buildSupEqual( ExprTree& lhs, ExprTree& rhs, const double eps)
@@ -417,7 +432,7 @@ class Parser
 		auto top = make_node<NodeSupEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
-		top->myEps = eps;
+		top->eps = eps;
 		return move( top);
 	}
 

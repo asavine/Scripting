@@ -1,3 +1,19 @@
+
+/*
+Written by Antoine Savine in 2018
+
+This code is the strict IP of Antoine Savine
+
+License to use and alter this code for personal and commercial applications
+is freely granted to any person or company who purchased a copy of the book
+
+Modern Computational Finance: Scripting for Derivatives and XVA
+Jesper Andreasen & Antoine Savine
+Wiley, 2018
+
+As long as this comment is preserved at the top of the file
+*/
+
 #pragma once
 
 #include "scriptingVisitor.h"
@@ -42,10 +58,10 @@ public:
 	inline void visitCondT( NodeCond& node)
 	{
 		//	Always true ==> replace the tree by a True node
-		if( node.myAlwaysTrue) myCurrent->reset( new NodeTrue());
+		if( node.alwaysTrue) myCurrent->reset( new NodeTrue());
 		
 		//	Always false ==> replace the tree by a False node
-		else if( node.myAlwaysFalse) myCurrent->reset( new NodeFalse());
+		else if( node.alwaysFalse) myCurrent->reset( new NodeFalse());
 
 		//	Nothing to do here ==> visit the arguments
 		else visitArguments( node);
@@ -81,7 +97,7 @@ public:
 	void visitIf( NodeIf& node) override
 	{
 		//	Always true ==> replace the tree by the collection of "if true" statements
-		if( node.myAlwaysTrue) 
+		if( node.alwaysTrue) 
 		{
             size_t lastTrueStat = node.firstElse == -1? node.arguments.size()-1: node.firstElse-1;
 			
@@ -98,7 +114,7 @@ public:
 		}
 		
 		//	Always false ==> replace the tree by the collection of "else" statements
-		else if( node.myAlwaysFalse) 
+		else if( node.alwaysFalse)
 		{
 			int firstElseStatement = node.firstElse;
 

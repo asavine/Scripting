@@ -146,22 +146,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="cpp11basicRanGen.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="functDomain.h" />
-    <ClInclude Include="gaussians.h" />
-    <ClInclude Include="matrix.h" />
     <ClInclude Include="memorymanager.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="quickStack.h" />
+    <ClInclude Include="scriptingCompiler.h" />
     <ClInclude Include="scriptingConstCondProc.h" />
+    <ClInclude Include="scriptingConstProcessor.h" />
     <ClInclude Include="scriptingDebugger.h" />
     <ClInclude Include="scriptingDomainProc.h" />
     <ClInclude Include="scriptingEvaluator.h" />
-    <ClInclude Include="scriptingEvents.h" />
+    <ClInclude Include="scriptingProduct.h" />
     <ClInclude Include="scriptingFuzzyEval.h" />
     <ClInclude Include="scriptingIfProc.h" />
     <ClInclude Include="scriptingModel.h" />

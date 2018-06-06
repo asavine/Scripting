@@ -316,8 +316,7 @@ class Parser
 			throw script_error( (string( "Variable name ") + *cur + " is invalid").c_str());
 
 		//	Build the var node
-		auto top = make_node<NodeVar>();
-		top->name = *cur;
+		auto top = make_node<NodeVar>(*cur);
 
 		//	Advance over var and return
 		++cur;

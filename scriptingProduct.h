@@ -32,13 +32,13 @@ As long as this comment is preserved at the top of the file
 using namespace std;
 #include <vector>
 
-typedef ExprTree Statement;
+using Statement = ExprTree;
 
-typedef vector<Statement> Event;
+using Event = vector<Statement>;
 
 //	Date class from your date library
 //	class Date;
-typedef int Date;
+using Date = int;
 
 class Product
 {

@@ -43,7 +43,7 @@ public:
 		mySp = 0;
 	}
 
-	virtual ~quickStack()
+	~quickStack()
 	{
 		if (myData) delete[] myData;
 	}

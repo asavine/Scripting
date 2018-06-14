@@ -36,10 +36,6 @@ struct EvalState
     //	State
     vector<T>				    variables;
 
-    //	Stacks
-    staticStack<T>			    dstack;
-    staticStack<char>		    bstack;
-
     //  Constructor
     EvalState(const size_t nVar) : variables (nVar) {}
 
@@ -47,27 +43,6 @@ struct EvalState
     void init()
     {
         for (auto& var : variables) var = 0.0;
-        //	Stacks should be empty, if this is not the case the empty them
-        //		without affecting capacity for added performance
-        if (!dstack.empty()) dstack.reset();
-        if (!bstack.empty()) bstack.reset();
-    }
-
-    //	Copy/Move
-
-    EvalState(const EvalState& rhs) : variables(rhs.variables) {}
-    EvalState& operator=(const EvalState& rhs)
-    {
-        if (this == &rhs) return *this;
-        variables = rhs.variables;
-        return *this;
-    }
-
-    EvalState(EvalState&& rhs) : variables(move(rhs.variables)) {}
-    EvalState& operator=(EvalState&& rhs)
-    {
-        variables = move(rhs.variables);
-        return *this;
     }
 };
 
@@ -86,13 +61,9 @@ enum NodeType
     Pow,
     PowConst,
     ConstPow,
-    Max,
     Max2,
-    MaxConst,
     Max2Const,
-    Min,
     Min2,
-    MinConst,
     Min2Const,
     Spot,
     Var,
@@ -250,53 +221,9 @@ public:
         }
 
         //  Special case for 2 args since it is so common
-        else if (node.arguments.size() == 2)
+        else 
         {
             visitBinary<Max2, Max2Const, Max2Const>(node);
-        }
-
-        //  More than 2 args
-        else
-        {
-            //  Find all const and non const args
-            vector<size_t> constArgs, nonConstArgs;
-            for (size_t i = 0; i < node.arguments.size(); ++i)
-            {
-                const dNode* arg = downcast<dNode>(node.arguments[i]);
-                if (arg->isConst)
-                {
-                    constArgs.push_back(i);
-                }
-                else
-                {
-                    nonConstArgs.push_back(i);
-                }
-
-                //  Visit non const args
-                for (size_t i : nonConstArgs)
-                {
-                    node.arguments[i]->acceptVisitor(*this);
-                }
-
-                //  Nothing is const
-                if (constArgs.empty())
-                {
-                    myNodeStream.push_back(Max); 
-                    myNodeStream.push_back(nonConstArgs.size()); 
-                }
-                else
-                {
-                    myNodeStream.push_back(MaxConst);
-                    myNodeStream.push_back(myConstStream.size());
-                    myNodeStream.push_back(nonConstArgs.size());
-                    double m = downcast<dNode>(node.arguments[constArgs[0]])->constVal;
-                    for (size_t i = 1; i < constArgs.size(); ++i)
-                    {
-                        m = max(m, downcast<dNode>(node.arguments[constArgs[i]])->constVal);
-                    }
-                    myConstStream.push_back(m);
-                }
-            }
         }
     }
 
@@ -310,55 +237,11 @@ public:
             myConstStream.push_back(node.constVal);
         }
 
-        //  Special case for 2 args since it is so common
-        else if (node.arguments.size() == 2)
+        else 
         {
             visitBinary<Min2, Min2Const, Min2Const>(node);
         }
 
-        //  More than 2 args
-        else
-        {
-            //  Find all const and non const args
-            vector<size_t> constArgs, nonConstArgs;
-            for (size_t i = 0; i < node.arguments.size(); ++i)
-            {
-                const dNode* arg = downcast<dNode>(node.arguments[i]);
-                if (arg->isConst)
-                {
-                    constArgs.push_back(i);
-                }
-                else
-                {
-                    nonConstArgs.push_back(i);
-                }
-
-                //  Visit non const args
-                for (size_t i : nonConstArgs)
-                {
-                    node.arguments[i]->acceptVisitor(*this);
-                }
-
-                //  Nothing is const
-                if (constArgs.empty())
-                {
-                    myNodeStream.push_back(Min);
-                    myNodeStream.push_back(nonConstArgs.size());
-                }
-                else
-                {
-                    myNodeStream.push_back(MinConst);
-                    myNodeStream.push_back(myConstStream.size());
-                    myNodeStream.push_back(nonConstArgs.size());
-                    double m = downcast<dNode>(node.arguments[constArgs[0]])->constVal;
-                    for (size_t i = 1; i < constArgs.size(); ++i)
-                    {
-                        m = min(m, downcast<dNode>(node.arguments[constArgs[i]])->constVal);
-                    }
-                    myConstStream.push_back(m);
-                }
-            }
-        }
     }
 
     void visitSmooth(const NodeSmooth& node) override
@@ -536,6 +419,8 @@ public:
     }
 };
 
+
+
 template <class T>
 inline void evalCompiled(
     //  Stream to eval
@@ -553,6 +438,14 @@ inline void evalCompiled(
     const size_t n = last? last: nodeStream.size();
     size_t i = first;
 
+    //  Work space
+    T x, y, z, t;
+    size_t idx;
+
+    //  Stacks
+    staticStack<T> dStack;
+    staticStack<char> bStack;
+
     //  Loop on instructions
     while (i < n)
     {
@@ -562,308 +455,197 @@ inline void evalCompiled(
         
         case Add:
 
-            state.dstack[1] += state.dstack.top();
-            state.dstack.pop();
+            dStack[1] += dStack.top();
+            dStack.pop();
 
             ++i;
             break;
 
         case AddConst:
 
-            state.dstack.top() += constStream[nodeStream[++i]];
+            dStack.top() += constStream[nodeStream[++i]];
 
             ++i;
             break;
 
         case Sub:
 
-            state.dstack[1] -= state.dstack.top();
-            state.dstack.pop();
+            dStack[1] -= dStack.top();
+            dStack.pop();
 
             ++i;
             break;
 
         case SubConst:
 
-            state.dstack.top() -= constStream[nodeStream[++i]];
+            dStack.top() -= constStream[nodeStream[++i]];
 
             ++i;
             break;
 
         case ConstSub:
 
-            state.dstack.top() = constStream[nodeStream[++i]] - state.dstack.top();
+            dStack.top() = constStream[nodeStream[++i]] - dStack.top();
 
             ++i;
             break;
 
         case Mult:
 
-            state.dstack[1] *= state.dstack.top();
-            state.dstack.pop();
+            dStack[1] *= dStack.top();
+            dStack.pop();
 
             ++i;
             break;
 
         case MultConst:
 
-            state.dstack.top() *= constStream[nodeStream[++i]];
+            dStack.top() *= constStream[nodeStream[++i]];
 
             ++i;
             break;
 
         case Div:
 
-            state.dstack[1] /= state.dstack.top();
-            state.dstack.pop();
+            dStack[1] /= dStack.top();
+            dStack.pop();
 
             ++i;
             break;
 
         case DivConst:
 
-            state.dstack.top() /= constStream[nodeStream[++i]];
+            dStack.top() /= constStream[nodeStream[++i]];
 
             ++i;
             break;
 
         case ConstDiv:
 
-            state.dstack.top() = constStream[nodeStream[++i]] / state.dstack.top();
+            dStack.top() = constStream[nodeStream[++i]] / dStack.top();
 
             ++i;
             break;
 
         case Pow:
 
-            state.dstack[1] = pow(state.dstack[1], state.dstack.top());
-            state.dstack.pop();
+            dStack[1] = pow(dStack[1], dStack.top());
+            dStack.pop();
 
             ++i;
             break;
 
         case PowConst:
 
-            state.dstack.top() = pow(state.dstack.top(), constStream[nodeStream[++i]]);
+            dStack.top() = pow(dStack.top(), constStream[nodeStream[++i]]);
 
             ++i;
             break;
 
         case ConstPow:
 
-            state.dstack.top() = pow(constStream[nodeStream[++i]], state.dstack.top());
-
-            ++i;
-            break;
-
-        case Max:
-        
-            {
-                ++i;
-                const int narg = nodeStream[i];
-                T& m = state.dstack[narg - 1];
-
-                for (int j = narg - 2; j >= 0; --j)
-                {
-                    const T x = state.dstack[j];
-                    if (x > m)
-                    {
-                        m = x;
-                    }
-                }
-
-                state.dstack.pop(narg - 1);
-            }
+            dStack.top() = pow(constStream[nodeStream[++i]], dStack.top());
 
             ++i;
             break;
 
         case Max2:
 
-            {
-                T& m = state.dstack[1];
-                const T x = state.dstack.top();
+            y = dStack.top();
 
-                if (x > m) m = x;
-                state.dstack.pop();
-            }
-
-            ++i;
-            break;
-
-        case MaxConst:
-
-            {
-                ++i;
-                const int narg = nodeStream[i];
-                T m = constStream[nodeStream[++i]];
-
-                for (int j = narg - 1; j >= 0; --j)
-                {
-                    const T x = state.dstack[j];
-                    if (x > m)
-                    {
-                        m = x;
-                    }
-                }
-
-                state.dstack.pop(narg - 1);
-                state.dstack.top() = m;
-            }
+            if (y > dStack[1]) dStack[1] = y;
+            dStack.pop();
 
             ++i;
             break;
 
         case Max2Const:
 
-            {
-                T& x = state.dstack.top();
-                const T y = constStream[nodeStream[++i]];
-                if (y > x) x = y;
-
-            }
-
-            ++i;
-            break;
-
-        case Min:
-
-            {
-                ++i;
-                const int narg = nodeStream[i];
-                T& m = state.dstack[narg - 1];
-
-                for (int j = narg - 2; j >= 0; --j)
-                {
-                    const T x = state.dstack[j];
-                    if (x < m)
-                    {
-                        m = x;
-                    }
-                }
-
-                state.dstack.pop(narg - 1);
-            }
+            y = constStream[nodeStream[++i]];
+            if (y > dStack.top()) dStack.top() = y;
 
             ++i;
             break;
 
         case Min2:
 
-            {
-                T& m = state.dstack[1];
-                const T x = state.dstack.top();
+            y = dStack.top();
 
-                if (x < m) m = x;
-                state.dstack.pop();
-            }
-
-            ++i;
-            break;
-
-        case MinConst:
-
-            {
-                ++i;
-                const int narg = nodeStream[i];
-                T m = constStream[nodeStream[++i]];
-
-                for (int j = narg - 1; j >= 0; --j)
-                {
-                    const T x = state.dstack[j];
-                    if (x < m)
-                    {
-                        m = x;
-                    }
-                }
-
-                state.dstack.pop(narg - 1);
-                state.dstack.top() = m;
-            }
+            if (y < dStack[1]) dStack[1] = y;
+            dStack.pop();
 
             ++i;
             break;
 
         case Min2Const:
-            
-            {
-                T& x = state.dstack.top();
-                const T y = constStream[nodeStream[++i]];
-                if (y < x) x = y;
-            }
+
+            y = constStream[nodeStream[++i]];
+            if (y < dStack.top()) dStack.top() = y;
 
             ++i;
             break;
 
         case Spot:
 
-            state.dstack.push(scen.spot);
+            dStack.push(scen.spot);
 
             ++i;
             break;
 
         case Var:
         
-            state.dstack.push(state.variables[nodeStream[++i]]);
+            dStack.push(state.variables[nodeStream[++i]]);
 
             ++i;
             break;
 
         case Const:
 
-            state.dstack.push(constStream[nodeStream[++i]]);
+            dStack.push(constStream[nodeStream[++i]]);
 
             ++i;
             break;
 
         case Assign:
         
-            {
-                const size_t idx = nodeStream[++i];
-                state.variables[idx] = state.dstack.top();
-                state.dstack.pop();
-            }
+            idx = nodeStream[++i];
+            state.variables[idx] = dStack.top();
+            dStack.pop();
 
             ++i;
             break;
 
         case AssignConst:
 
-            {
-                const double val = constStream[nodeStream[++i]];
-                const size_t idx = nodeStream[++i];
-                state.variables[idx] = val;
-            }
+            x = constStream[nodeStream[++i]];
+            idx = nodeStream[++i];
+            state.variables[idx] = x;
 
             ++i;
             break;
 
         case Pays:
 
-            {
-                ++i;
-                const size_t idx = nodeStream[i];
-                state.variables[idx] += state.dstack.top() / scen.numeraire;
-                state.dstack.pop();
-            }
+            ++i;
+            idx = nodeStream[i];
+            state.variables[idx] += dStack.top() / scen.numeraire;
+            dStack.pop();
 
             ++i;
             break;
 
         case PaysConst:
 
-            {
-                const double val = constStream[nodeStream[++i]];
-                const size_t idx = nodeStream[++i];
-                state.variables[idx] += val / scen.numeraire;
-            }
+            x = constStream[nodeStream[++i]];
+            idx = nodeStream[++i];
+            state.variables[idx] += x / scen.numeraire;
 
             ++i;
             break;
 
         case If:
 
-            if (state.bstack.top())
+            if (bStack.top())
             {
                 i += 2;
             }
@@ -872,13 +654,13 @@ inline void evalCompiled(
                 i = nodeStream[++i];
             }
 
-            state.bstack.pop();
+            bStack.pop();
 
         break;
 
         case IfElse:
 
-            if (!state.bstack.top())
+            if (!bStack.top())
             {
                 i = nodeStream[++i];
             }
@@ -889,78 +671,76 @@ inline void evalCompiled(
                 i = nodeStream[i + 2];
             }
 
-            state.bstack.pop();
+            bStack.pop();
 
             break;
 
         case Equal:
 
-            state.bstack.push(fabs(state.dstack.top()) < EPS);
-            state.dstack.pop();
+            bStack.push(dStack.top() == 0);
+            dStack.pop();
 
             ++i;
             break;
 
         case Sup:
 
-            state.bstack.push(state.dstack.top() > EPS);
-            state.dstack.pop();
+            bStack.push(dStack.top() > 0);
+            dStack.pop();
 
             ++i;
             break;
 
         case SupEqual:
 
-            state.bstack.push(state.dstack.top() > -EPS);
-            state.dstack.pop();
+            bStack.push(dStack.top() >= 0);
+            dStack.pop();
 
             ++i;
             break;
 
         case And:
 
-            if (state.bstack[1])
+            if (bStack[1])
             {
-                state.bstack[1] = state.bstack.top();
+                bStack[1] = bStack.top();
             }
-            state.bstack.pop();
+            bStack.pop();
 
             ++i;
             break;
 
         case Or:
 
-            if (!state.bstack[1])
+            if (!bStack[1])
             {
-                state.bstack[1] = state.bstack.top();
+                bStack[1] = bStack.top();
             }
-            state.bstack.pop();
+            bStack.pop();
 
             ++i;
             break;
 
         case Smooth:
 
+            //	Eval the condition
+            x = dStack[3];
+            y = 0.5*dStack.top();
+            z = dStack[2];
+            t = dStack[1];
+
+            dStack.pop(3);
+
+            //	Left
+            if (x < -y) dStack.top() = t;
+
+            //	Right
+            if (x < -y) dStack.top() = z;
+
+            //	Fuzzy
+            else
             {
-                //	Eval the condition
-                const T x = state.dstack[3],
-                    halfEps = 0.5*state.dstack.top(),
-                    vPos = state.dstack[2],
-                    vNeg = state.dstack[1];
-
-                state.dstack.pop(3);
-
-                //	Left
-                if (x < -halfEps) state.dstack.top() = vNeg;
-
-                //	Right
-                if (x < -halfEps) state.dstack.top() = vPos;
-
-                //	Fuzzy
-                else
-                {
-                    state.dstack.top() = vNeg + 0.5 * (vPos - vNeg) / halfEps * (x + halfEps);
-                }
+                dStack.top() = t + 0.5 * (z - t) / y * (x + y);
             }
 
             ++i;
@@ -968,42 +748,42 @@ inline void evalCompiled(
 
         case Sqrt:
 
-            state.dstack.top() = sqrt(state.dstack.top());
+            dStack.top() = sqrt(dStack.top());
 
             ++i;
             break;
 
         case Log:
 
-            state.dstack.top() = log(state.dstack.top());
+            dStack.top() = log(dStack.top());
 
             ++i;
             break;
 
         case Not:
 
-            state.bstack.top() = !state.bstack.top();
+            bStack.top() = !bStack.top();
 
             ++i;
             break;
 
         case Uminus:
 
-            state.dstack.top() = -state.dstack.top();
+            dStack.top() = -dStack.top();
 
             ++i;
             break;
 
         case True:
 
-            state.bstack.push(true);
+            bStack.push(true);
 
             ++i;
             break;
 
         case False:
 
-            state.bstack.push(false);
+            bStack.push(false);
 
             ++i;
             break;

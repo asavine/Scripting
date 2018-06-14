@@ -19,6 +19,9 @@ As long as this comment is preserved at the top of the file
 #include "scriptingEvaluator.h"
 #include "scriptingIfProc.h"
 
+#define EPS 1.0e-12
+#define ONEMINUSEPS 0.999999999999
+
 //	The fuzzy evaluator
 
 template <class T>
@@ -265,22 +268,24 @@ public:
 	//	Negation
 	void visitNot( const NodeNot& node) override
 	{
-        evalArgsRL( node);
-		myFuzzyStack.top() = 1.0 - myFuzzyStack.top();
+        node.arguments[0]->acceptVisitor(*this);
+        myFuzzyStack.top() = 1.0 - myFuzzyStack.top();
 	}
 
 	//	Combinators
 	//	Hard coded proba stlye and->dt(lhs)*dt(rhs), or->dt(lhs)+dt(rhs)-dt(lhs)*dt(rhs)
 	void visitAnd( const NodeAnd& node) override
 	{ 
-        evalArgsRL( node);
-		const auto args=pop2f(); 
+        node.arguments[0]->acceptVisitor(*this);
+        node.arguments[1]->acceptVisitor(*this);
+        const auto args=pop2f();
 		myFuzzyStack.push( args.first * args.second); 
 	}
 	void visitOr( const NodeOr& node) override
 	{ 
-        evalArgsRL( node);
-		const auto args=pop2f(); 
+        node.arguments[0]->acceptVisitor(*this);
+        node.arguments[1]->acceptVisitor(*this);
+        const auto args=pop2f();
 		myFuzzyStack.push( args.first + args.second - args.first * args.second); 
 	}
 };

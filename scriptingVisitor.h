@@ -15,114 +15,126 @@ As long as this comment is preserved at the top of the file
 */
 
 #pragma once
+#pragma warning(disable : 4250)
 
-#include "scriptingNodes.h"
+#include "visitorList.h"
 
+//  Base visitors
+
+//  V = concrete visitor 
+//  V overloads visits to particular node types
+//  The non-overloaded node types are caught in the base visitor
+template <class V>
 class Visitor
 {
-protected:
-	//	Protected constructor so the base class cannot be instantiated
-	Visitor() {}
-
-public:
-	virtual ~Visitor() {}
 
 protected:
-	//	Default visit just visits arguments so as to ensure that the whole sub-tree is visited
-	virtual void visitArguments( Node& node) 
-	{
-		for( auto& arg : node.arguments) arg->acceptVisitor( *this);
-	}
+
+    //  Visit all the arguments with concrete type V visitor 
+    template <class NODE>
+    void visitArguments(NODE& node)
+    {
+        for (auto& arg : node.arguments)
+        {
+            //  static_cast : visit as concrete visitor 
+            arg->accept(static_cast<V&> (*this));
+        }
+    }
 
 public:
 
-	//	Entry point for visiting a (sub-) tree
-	void visit( ExprTree& tree)
-	{
-		tree->acceptVisitor( *this);
-	}
-
-	//	All concrete node default visitors, visit arguments unless overridden
-	virtual void visitCollect( NodeCollect& node) { visitArguments( node); }
-	virtual void visitTrue( NodeTrue& node) { visitArguments( node); }
-	virtual void visitFalse( NodeFalse& node) { visitArguments( node); }
-	virtual void visitUplus( NodeUplus& node) { visitArguments( node); }
-	virtual void visitUminus( NodeUminus& node) { visitArguments( node); }
-	virtual void visitAdd( NodeAdd& node) { visitArguments( node); }
-	virtual void visitSubtract( NodeSubtract& node) { visitArguments( node); }
-	virtual void visitMult( NodeMult& node) { visitArguments( node); }
-	virtual void visitDiv( NodeDiv& node) { visitArguments( node); }
-	virtual void visitPow( NodePow& node) { visitArguments( node); }
-	virtual void visitLog( NodeLog& node) { visitArguments( node); }
-	virtual void visitSqrt( NodeSqrt& node) { visitArguments( node); }
-	virtual void visitMax( NodeMax& node) { visitArguments( node); }
-	virtual void visitMin( NodeMin& node) { visitArguments( node); }
-	virtual void visitSmooth( NodeSmooth& node) { visitArguments( node); }
-	virtual void visitEqual( NodeEqual& node) { visitArguments( node); }
-	virtual void visitNot( NodeNot& node) { visitArguments( node); }
-	virtual void visitSuperior( NodeSuperior& node) { visitArguments( node); }
-	virtual void visitSupEqual( NodeSupEqual& node) { visitArguments( node); }
-	virtual void visitAnd( NodeAnd& node) { visitArguments( node);}
-	virtual void visitOr( NodeOr& node) { visitArguments( node); }
-	virtual void visitAssign( NodeAssign& node) { visitArguments( node); }
-	virtual void visitPays( NodePays& node) { visitArguments( node); }
-	virtual void visitSpot( NodeSpot& node) { visitArguments( node); }
-	virtual void visitIf( NodeIf& node) { visitArguments( node); }
-	virtual void visitConst( NodeConst& node) { visitArguments( node); }
-	virtual void visitVar( NodeVar& node) { visitArguments( node); }
+    //  Catch all = visit arguments
+    template <class NODE>
+    void visit(NODE& node)
+    {
+        visitArguments(node);
+    }
 };
 
+//  Const visitor
+
+template <class V>
 class constVisitor
 {
-protected:
-	//	Protected constructor so the base class cannot be instantiated
-	constVisitor() {}
-
-public:
-	virtual ~constVisitor() {}
 
 protected:
-	//	Default visit just visits arguments so as to ensure that the whole sub-tree is visited
-	virtual void visitArguments( const Node& node) 
-	{
-		for( auto& arg : node.arguments) arg->acceptVisitor( *this);
-	}
+
+    template <class NODE>
+    void visitArguments(const NODE& node)
+    {
+        for (const auto& arg : node.arguments)
+        {
+            //  static_cast : visit as visitor of type V
+            arg->accept(static_cast<V&> (*this));
+        }
+    }
+
 
 public:
 
-	//	Entry point for visiting a (sub-) tree
-	void visit( const ExprTree& tree)
-	{
-		tree->acceptVisitor( *this);
-	}
+    template <class NODE>
+    void visit(const NODE& node)
+    {
+        visitArguments(node);
+    }
 
-	//	All concrete node default visitors, visit arguments unless overridden
+};
 
-	virtual void visitCollect( const NodeCollect& node) { visitArguments( node); }
-	virtual void visitTrue( const NodeTrue& node) { visitArguments( node); }
-	virtual void visitFalse( const NodeFalse& node) { visitArguments( node); }
-	virtual void visitUplus( const NodeUplus& node) { visitArguments( node); }
-	virtual void visitUminus( const NodeUminus& node) { visitArguments( node); }
-	virtual void visitAdd( const NodeAdd& node) { visitArguments( node); }
-	virtual void visitSubtract( const NodeSubtract& node) { visitArguments( node); }
-	virtual void visitMult( const NodeMult& node) { visitArguments( node); }
-	virtual void visitDiv( const NodeDiv& node) { visitArguments( node); }
-	virtual void visitPow( const NodePow& node) { visitArguments( node); }
-	virtual void visitLog( const NodeLog& node) { visitArguments( node); }
-	virtual void visitSqrt( const NodeSqrt& node) { visitArguments( node); }
-	virtual void visitMax( const NodeMax& node) { visitArguments( node); }
-	virtual void visitMin( const NodeMin& node) { visitArguments( node); }
-	virtual void visitSmooth( const NodeSmooth& node) { visitArguments( node); }
-	virtual void visitEqual( const NodeEqual& node) { visitArguments( node); }
-	virtual void visitNot( const NodeNot& node) { visitArguments( node); }
-	virtual void visitSuperior( const NodeSuperior& node) { visitArguments( node); }
-	virtual void visitSupEqual( const NodeSupEqual& node) { visitArguments( node); }	
-	virtual void visitAnd( const NodeAnd& node) { visitArguments( node);}
-	virtual void visitOr( const NodeOr& node) { visitArguments( node); }
-	virtual void visitAssign( const NodeAssign& node) { visitArguments( node); }
-	virtual void visitPays( const NodePays& node) { visitArguments( node); }
-	virtual void visitSpot( const NodeSpot& node) { visitArguments( node); }
-	virtual void visitIf( const NodeIf& node) { visitArguments( node); }
-	virtual void visitConst( const NodeConst& node) { visitArguments( node); }
-	virtual void visitVar( const NodeVar& node) { visitArguments( node); }
+//  Visitablebase classes
+//  Base Node must inherit visitableBase 
+//  Concrete Nodes must inherit Visitable
+
+template <typename... Vs>
+struct VisitableBase;
+
+template <typename V>
+struct VisitableBase<V>
+{
+    virtual void accept(V& visitor) = 0;
+    virtual void accept(V& visitor) const = 0;
+};
+
+template <typename V, typename... Vs>
+struct VisitableBase<V, Vs...> : VisitableBase<Vs...>
+{
+    using VisitableBase<Vs...>::accept;
+    virtual void accept(V& visitor) = 0;
+    virtual void accept(V& visitor) const = 0;
+};
+
+//  Visitable
+
+template <typename Base, typename Concrete, typename... Vs>
+struct Visitable;
+
+template <typename Base, typename Concrete, typename V>
+struct Visitable<Base, Concrete, V> : Base
+{
+    void accept(V& visitor) override
+    {
+        visitor.visit(static_cast<Concrete&>(*this));
+    }
+
+    void accept(V& visitor) const override
+    {
+        visitor.visit(static_cast<const Concrete&>(*this));
+    }
+
+};
+
+template <typename Base, typename Concrete, typename V, typename... Vs>
+struct Visitable<Base, Concrete, V, Vs...> : Visitable<Base, Concrete, Vs...>
+{
+    using  Visitable<Base, Concrete, Vs...>::accept;
+
+    void accept(V& visitor) override
+    {
+        visitor.visit(static_cast<Concrete&>(*this));
+    }
+
+    void accept(V& visitor) const override
+    {
+        visitor.visit(static_cast<const Concrete&>(*this));
+    }
+
 };

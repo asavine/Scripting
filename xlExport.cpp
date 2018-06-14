@@ -255,7 +255,7 @@ extern "C" __declspec(dllexport) XLOper12* TestCalls(
         simpleBsCallsVal(today, spot, vol, rate, normal, mat, strikes, numSim, seed, res);
 
         XLOper12 xRes(strikes.size(), 1);
-        for (auto i = 0; i < strikes.size(); ++i) xRes(i, 0) = XLOper12(res[i]);
+        for (unsigned i = 0; i < strikes.size(); ++i) xRes(i, 0) = XLOper12(res[i]);
 
         return return_xloper_raw_ptr(xRes);
 

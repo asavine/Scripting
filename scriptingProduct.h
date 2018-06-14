@@ -16,24 +16,30 @@ As long as this comment is preserved at the top of the file
 
 #pragma once
 
-#include "scriptingNodes.h"
-#include "scriptingParser.h"
+//  Base
 #include "scriptingVisitor.h"
+#include "scriptingNodes.h"
+
+//  All the visitors
 #include "scriptingVarIndexer.h"
 #include "scriptingDebugger.h"
 #include "scriptingEvaluator.h"
 #include "scriptingCompiler.h"
 #include "scriptingFuzzyEval.h"
-#include "scriptingScenarios.h"
 #include "scriptingDomainProc.h"
 #include "scriptingConstCondProc.h"
 #include "scriptingConstProcessor.h"
+
+//  Parser
+#include "scriptingParser.h"
+
+//  Scenarios
+#include "scriptingScenarios.h"
 
 using namespace std;
 #include <vector>
 
 using Statement = ExprTree;
-
 using Event = vector<Statement>;
 
 //	Date class from your date library
@@ -112,7 +118,8 @@ public:
 	//	Visitors
 
 	//	Sequentially visit all statements in all events
-	void visit( Visitor& v)
+	template<class VISITOR>
+    void visit(VISITOR& v)
 	{
 		//	Loop over events
 		for( auto& evt : myEvents)
@@ -121,12 +128,27 @@ public:
 			for( auto& stat : evt)
 			{
 				//	Visit statement
-				v.visit( stat);
+                stat->accept(v);
 			}
 		}
 	}
 
-	//	Evaluate all statements in all events
+    template<class CVISITOR>
+    void visit(CVISITOR& v) const
+    {
+        //	Loop over events
+        for (auto& evt : myEvents)
+        {
+            //	Loop over statements in event
+            for (auto& stat : evt)
+            {
+                //	Visit statement
+                stat->accept(v);
+            }
+        }
+    }
+    
+    //	Evaluate all statements in all events
     template <class T>
 	void evaluate( const Scenario<T>& scen, Evaluator<T>& eval) const
 	{
@@ -137,16 +159,16 @@ public:
 		eval.init();
 
 		//	Loop over events
-		for(auto i=0; i<myEvents.size(); ++i)
+		for(size_t i=0; i<myEvents.size(); ++i)
 		{
 			//	Set current event
 			eval.setCurEvt( i);
 			
 			//	Loop over statements in event
-			for( auto& statIt : myEvents[i])
+			for( const auto& statIt : myEvents[i])
 			{
 				//	Visit statement
-				eval.visit( statIt);
+				statIt->accept(eval);
 			}
 		}
 	}
@@ -161,7 +183,7 @@ public:
         state.init();
 
         //	Loop over events
-        for (auto i = 0; i<myEvents.size(); ++i)
+        for (size_t i = 0; i<myEvents.size(); ++i)
         {
             //	Evaluate the compiled events
             evalCompiled(myNodeStreams[i], myConstStreams[i], myDataStreams[i], scen[i], state);
@@ -258,14 +280,13 @@ public:
             for (auto& stat : evt)
             {
                 //	Visit statement
-                comp.visit(stat);
+                stat->accept(comp);
             }
 
             //  Get compiled function
-            auto& p = comp.streams();
-            myNodeStreams.push_back(get<0>(p));
-            myConstStreams.push_back(get<1>(p));
-            myDataStreams.push_back(get<2>(p));
+            myNodeStreams.push_back(comp.nodeStream());
+            myConstStreams.push_back(comp.constStream());
+            myDataStreams.push_back(comp.dataStream());
         }
     }
 
@@ -303,7 +324,7 @@ public:
 			unsigned s=0;
 			for( auto& stat : evtIt)
 			{
-				d.visit( stat);
+				stat->accept(d);
 				ost << "Statement: " << ++s << endl;
 				ost << d.getString() << endl;
 			}

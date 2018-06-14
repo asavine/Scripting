@@ -21,12 +21,14 @@ As long as this comment is preserved at the top of the file
 
 #include <map>
 
-class VarIndexer : public Visitor
-{
-	//	State
+class VarIndexer : public Visitor<VarIndexer>
+{    
+    //	State
 	map<string,size_t>	myVarMap;
 
 public:
+
+    using Visitor<VarIndexer>::visit;
 
 	//	Access vector of variable names v[index]=name after visit to all events
 	vector<string> getVarNames() const
@@ -42,7 +44,7 @@ public:
 	}
 
 	//	Variable indexer: build map of names to indices and write indices on variable nodes
-	void visitVar( NodeVar& node) override
+	void visit( NodeVar& node) 
 	{
 		auto varIt = myVarMap.find( node.name);
 		if( varIt == myVarMap.end()) 

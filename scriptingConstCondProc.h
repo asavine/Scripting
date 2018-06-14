@@ -17,6 +17,7 @@ As long as this comment is preserved at the top of the file
 #pragma once
 
 #include "scriptingVisitor.h"
+#include "scriptingNodes.h"
 
 //	ConstCond processor
 //	Processes all constant (always true/false) conditions and conditional statements
@@ -25,22 +26,24 @@ As long as this comment is preserved at the top of the file
 //	The always true/false if nodes are replaced by collections of statements to be evaluated
 //	The always true/false conditions are replaced by true/false nodes
 
-class ConstCondProcessor : public Visitor
+class ConstCondProcessor : public Visitor<ConstCondProcessor>
 {
 	//	The (unique) pointer on the node currently being visited 
-	ExprTree*			myCurrent;
+	ExprTree* myCurrent;
 
-	//	Overriden default visitor sets myCurrent when visiting arguments
-	void visitArguments( Node& node) override
+	//	Visit arguments, setting myCurrent
+    void visitArgsSetCurrent(Node& node) 
 	{
 		for( auto& arg : node.arguments) 
 		{
 			myCurrent = &arg;
-			arg->acceptVisitor( *this);
+			arg->accept(*this);
 		}
 	}
 
 public:
+
+    using Visitor<ConstCondProcessor>::visit;
 
 	//	This patricular visitor modifies the structure of the tree, hence it must be called only
 	//		with this method from the top of every tree, passing a ref on the unique_ptr holding 
@@ -48,69 +51,68 @@ public:
 	void processFromTop( unique_ptr<Node>& top) 
 	{
 		myCurrent = &top;
-		top->acceptVisitor( *this);
+		top->accept(*this);
 	}
 
 	//	Conditions
 
-	//	One visitor for all conditions
-	template <class NodeCond>
-	inline void visitCondT( NodeCond& node)
+	//	One visitor for all booleans
+	void visitBool(boolNode& node)
 	{
 		//	Always true ==> replace the tree by a True node
-		if( node.alwaysTrue) myCurrent->reset( new NodeTrue());
+		if(node.alwaysTrue) myCurrent->reset( new NodeTrue);
 		
 		//	Always false ==> replace the tree by a False node
-		else if( node.alwaysFalse) myCurrent->reset( new NodeFalse());
+		else if(node.alwaysFalse) myCurrent->reset( new NodeFalse);
 
 		//	Nothing to do here ==> visit the arguments
-		else visitArguments( node);
+		else visitArgsSetCurrent(node);
 	}
 
 	//	Visitors
-	void visitEqual( NodeEqual& node) override
+	void visit(NodeEqual& node) 
 	{
-		visitCondT( node);
+        visitBool( node);
 	}
-	void visitNot( NodeNot& node) override
+    void visit(NodeSup& node) 
+    {
+        visitBool(node);
+    }
+    void visit(NodeSupEqual& node) 
+    {
+        visitBool(node);
+    }
+    void visit( NodeNot& node) 
 	{
-		visitCondT( node);
+        visitBool( node);
 	}
-	void visitSuperior( NodeSuperior& node) override
+	void visit( NodeAnd& node) 
 	{
-		visitCondT( node);
+        visitBool( node);
 	}
-	void visitSupEqual( NodeSupEqual& node) override
+	void visit( NodeOr& node) 
 	{
-		visitCondT( node);
-	}
-	void visitAnd( NodeAnd& node) override
-	{
-		visitCondT( node);
-	}
-	void visitOr( NodeOr& node) override
-	{
-		visitCondT( node);
+        visitBool( node);
 	}
 
 	//	If
-	void visitIf( NodeIf& node) override
+	void visit(NodeIf& node)
 	{
 		//	Always true ==> replace the tree by the collection of "if true" statements
-		if( node.alwaysTrue) 
+		if(node.alwaysTrue) 
 		{
             size_t lastTrueStat = node.firstElse == -1? node.arguments.size()-1: node.firstElse-1;
 			
 			//	Move arguments, destroy node
 			vector<ExprTree> args = move( node.arguments);
-			myCurrent->reset( new NodeCollect());
+			myCurrent->reset( new NodeCollect);
 			
 			for(size_t i=1; i<=lastTrueStat; ++i)
 			{
 				(*myCurrent)->arguments.push_back( move( args[i]));
 			}
 
-			visitArguments( **myCurrent);
+            visitArgsSetCurrent( **myCurrent);
 		}
 		
 		//	Always false ==> replace the tree by the collection of "else" statements
@@ -120,7 +122,7 @@ public:
 
 			//	Move arguments, destroy node
 			vector<ExprTree> args = move( node.arguments);
-			myCurrent->reset( new NodeCollect());
+			myCurrent->reset( new NodeCollect);
 
 			if( firstElseStatement != -1)
 			{
@@ -130,10 +132,10 @@ public:
 				}
 			}
 
-			visitArguments( **myCurrent);
+            visitArgsSetCurrent( **myCurrent);
 		}
 
 		//	Nothing to do here ==> visit the arguments
-		else visitArguments( node);
+		else visitArgsSetCurrent(node);
 	}
 };

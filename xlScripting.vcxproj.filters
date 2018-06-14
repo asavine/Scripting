@@ -90,6 +90,9 @@
     <ClInclude Include="scriptingProduct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="visitorList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
@@ -105,9 +108,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MemoryPool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="scriptingNodes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="scriptingParser.cpp">

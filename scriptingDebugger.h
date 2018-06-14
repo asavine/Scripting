@@ -16,12 +16,12 @@ As long as this comment is preserved at the top of the file
 
 #pragma once
 
-#include "scriptingNodes.h"
 #include "scriptingVisitor.h"
+#include "scriptingNodes.h"
 
 #include "quickStack.h"
 
-class Debugger : public constVisitor
+class Debugger : public constVisitor<Debugger>
 {
 	string					myPrefix;
 	staticStack<string>		myStack;
@@ -34,7 +34,7 @@ class Debugger : public constVisitor
 
 		//	Visit arguments, right to left
 		for( auto it = node.arguments.rbegin(); it != node.arguments.rend(); ++it)
-			(*it)->acceptVisitor( *this);
+			(*it)->accept( *this);
 	
 		//	One less tab
 		myPrefix.pop_back();
@@ -73,6 +73,8 @@ class Debugger : public constVisitor
 
 public:
 
+    using constVisitor<Debugger>::visit;
+
 	//	Access the top of the stack, contains the functional form after the tree is traversed
 	string getString() const
 	{
@@ -81,22 +83,22 @@ public:
 
 	//	All concrete node visitors, visit arguments by default unless overridden
 
-	void visitCollect( const NodeCollect& node) override { debug( node, "COLLECT"); }
+	void visit(const NodeCollect& node)  { debug( node, "COLLECT"); }
 
-	void visitUplus( const NodeUplus& node) override { debug( node, "UPLUS"); }
-	void visitUminus( const NodeUminus& node) override { debug( node, "UMINUS"); }
-	void visitAdd( const NodeAdd& node) override { debug( node, "ADD"); }
-	void visitSubtract( const NodeSubtract& node) override { debug( node, "SUBTRACT"); }
-	void visitMult( const NodeMult& node) override { debug( node, "MULT"); }
-	void visitDiv( const NodeDiv& node) override { debug( node, "DIV"); }
-	void visitPow( const NodePow& node) override { debug( node, "POW"); }
-	void visitLog( const NodeLog& node) override { debug( node, "LOG"); }
-	void visitSqrt( const NodeSqrt& node) override { debug( node, "SQRT"); }
-	void visitMax( const NodeMax& node) override { debug( node, "MAX"); }
-	void visitMin( const NodeMin& node) override { debug( node, "MIN"); }
-	void visitSmooth( const NodeSmooth& node) override { debug( node, "SMOOTH"); }
+	void visit(const NodeUplus& node)  { debug( node, "UPLUS"); }
+	void visit(const  NodeUminus& node)  { debug( node, "UMINUS"); }
+	void visit(const  NodeAdd& node)  { debug( node, "ADD"); }
+	void visit(const NodeSub& node)  { debug( node, "SUBTRACT"); }
+	void visit(const NodeMult& node)  { debug( node, "MULT"); }
+	void visit(const NodeDiv& node)  { debug( node, "DIV"); }
+	void visit(const NodePow& node)  { debug( node, "POW"); }
+	void visit(const NodeLog& node)  { debug( node, "LOG"); }
+	void visit(const NodeSqrt& node)  { debug( node, "SQRT"); }
+	void visit(const NodeMax& node)  { debug( node, "MAX"); }
+	void visit(const NodeMin& node)  { debug( node, "MIN"); }
+	void visit(const NodeSmooth& node)  { debug( node, "SMOOTH"); }
 	
-	void visitEqual( const NodeEqual& node) override 
+	void visit(const NodeEqual& node)
 	{
 		string s="EQUALZERO";
 
@@ -112,13 +114,13 @@ public:
 		debug( node, s); 
 	}
 	
-	void visitNot( const NodeNot& node) override 
+	void visit(const NodeNot& node)
 	{ 
 		string s = "NOT";
 		debug(node, s);
 	}
 	
-	void visitSuperior( const NodeSuperior& node) override 
+	void visit(const NodeSup& node)
 	{
 		string s = "GTZERO";
 		if( !node.discrete)
@@ -133,7 +135,7 @@ public:
 		debug( node, s); 
 	}
 	
-	void visitSupEqual( const NodeSupEqual& node) override 
+	void visit(const NodeSupEqual& node)
 	{
 		string s = "GTEQUALZERO";
 		if( !node.discrete)
@@ -148,23 +150,23 @@ public:
 		debug( node, s); 
 	}
 
-	void visitAnd( const NodeAnd& node) override 
+	void visit(const NodeAnd& node)
 	{ 
 		string s = "AND";
 		debug(node, s);
 	}
 
-	void visitOr( const NodeOr& node) override 
+	void visit(const NodeOr& node)
 	{ 
 		string s = "OR";
 		debug(node, s);
 	}
 
-	void visitAssign( const NodeAssign& node) override { debug( node, "ASSIGN"); }
-	void visitPays( const NodePays& node) override { debug( node, "PAYS"); }
-	void visitSpot( const NodeSpot& node) override { debug( node, "SPOT"); }
+	void visit(const NodeAssign& node)  { debug( node, "ASSIGN"); }
+	void visit(const NodePays& node)  { debug( node, "PAYS"); }
+	void visit(const NodeSpot& node)  { debug( node, "SPOT"); }
 	
-	void visitIf( const NodeIf& node) override 
+	void visit(const NodeIf& node)
 	{
 		string s = "IF";
 		s += "[FIRSTELSE=" + to_string( node.firstElse)+"]";
@@ -172,14 +174,14 @@ public:
 		debug(node, s);
 	}
 	
-	void visitTrue( const NodeTrue& node) override { debug( node, "TRUE"); }
-	void visitFalse( const NodeFalse& node) override { debug( node, "FALSE"); }
+	void visit(const NodeTrue& node)  { debug( node, "TRUE"); }
+	void visit(const NodeFalse& node)  { debug( node, "FALSE"); }
 
-	void visitConst( const NodeConst& node) override 
+	void visit(const NodeConst& node)
 	{
 		debug(node, string( "CONST[")+to_string( node.constVal)+']');
 	}
-	void visitVar( const NodeVar& node) override 
+	void visit(const NodeVar& node)
 	{
 		debug( node, string( "VAR[")+node.name+','+to_string( node.index)+']');
 	}

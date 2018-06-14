@@ -21,37 +21,38 @@ using namespace std;
 #include <vector>
 #include <memory>
 
-class Visitor;
-class constVisitor;
+#include "scriptingVisitor.h"
 
 struct Node;
-
 using ExprTree = unique_ptr<Node>;
 
 //	Base nodes
 
-struct Node
+struct Node :
+    VisitableBase<VISITORS>
 {
+    using VisitableBase<VISITORS>::accept;
+
 	vector<ExprTree>	arguments;
-
 	virtual ~Node() {}
-
-	virtual void acceptVisitor( Visitor& visitor) = 0;	
-	virtual void acceptVisitor( constVisitor& visitor) const = 0;	
 };
 
 //  Nodes that return a number
-struct dNode : public Node
+struct exprNode : Node
 {
     bool                isConst = false;
     double              constVal;
 };
 
 //  Action
-struct aNode : public Node {};
+struct actNode : Node {};
 
 //  Return a bool
-struct bNode : public Node {};
+struct boolNode : Node 
+{
+    bool				alwaysTrue;
+    bool				alwaysFalse;
+};
 
 //	Factories
 
@@ -100,113 +101,68 @@ unique_ptr<NodeType> buildConcreteBinary( ExprTree& lhs, ExprTree& rhs)
 	return top;
 }
 
-//	Collection of statements
-struct NodeCollect : public aNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+//  All the concrete nodes
 
-//	True
-struct NodeTrue: public bNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+//  Binary expressions
 
-//	False
-struct NodeFalse : public bNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeAdd :
+    Visitable<exprNode, NodeAdd, VISITORS>
+{};
 
-//	Unary +/-
-struct NodeUplus : public dNode 
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSub :
+    Visitable<exprNode, NodeSub, VISITORS>
+{};
 
-struct NodeUminus : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeMult :
+    Visitable<exprNode, NodeMult, VISITORS>
+{};
+
+struct NodeDiv :
+    Visitable<exprNode, NodeDiv, VISITORS>
+{};
+
+struct NodePow :
+    Visitable<exprNode, NodePow, VISITORS>
+{};
+
+struct NodeMax :
+    Visitable<exprNode, NodeMax, VISITORS>
+{};
+
+struct NodeMin :
+    Visitable<exprNode, NodeMin, VISITORS>
+{};
+
+//  Unary expressions
+
+struct NodeUplus :
+    Visitable<exprNode, NodeUplus, VISITORS>
+{};
+
+struct NodeUminus :
+    Visitable<exprNode, NodeUminus, VISITORS>
+{};
 
 //	Math operators
-struct NodeAdd : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
 
-struct NodeSubtract : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeLog :
+    Visitable<exprNode, NodeLog, VISITORS>
+{};
 
-struct NodeMult : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSqrt :
+    Visitable<exprNode, NodeSqrt, VISITORS>
+{};
 
-struct NodeDiv : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodePow : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-//	Math functions
-struct NodeLog : public dNode
-	 
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodeSqrt : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodeMax : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodeMin : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+//  Multi expressions
 
 //	Functional if
-struct NodeSmooth : public dNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSmooth :
+    Visitable<exprNode, NodeSmooth, VISITORS>
+{};
 
-//	Comparators
+//  Comparisons
 
-struct condNode : public bNode
-{
-    bool				alwaysTrue;
-    bool				alwaysFalse;
-};
-
-struct compNode : public condNode
+struct compNode : boolNode
 {
     //	Fuzzying stuff
     bool				discrete;	//	Continuous or discrete
@@ -218,91 +174,71 @@ struct compNode : public condNode
     //	End of fuzzying stuff
 };
 
-struct NodeEqual : public compNode
-{
-    void acceptVisitor(Visitor& visitor) override;
-    void acceptVisitor(constVisitor& visitor) const override;
-};
+struct NodeEqual :
+    Visitable<compNode, NodeEqual, VISITORS>
+{};
 
-struct NodeSuperior : public compNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSup :
+    Visitable<compNode, NodeSup, VISITORS>
+{};
 
-struct NodeSupEqual : public compNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSupEqual :
+    Visitable<compNode, NodeSupEqual, VISITORS>
+{};
 
 //	And/or/not
 
-struct NodeAnd : public condNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeAnd :
+    Visitable<boolNode, NodeAnd, VISITORS>
+{};
 
-struct NodeOr : public condNode
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeOr :
+    Visitable<boolNode, NodeOr, VISITORS>
+{};
 
-struct NodeNot : public condNode
-{
-    void acceptVisitor(Visitor& visitor) override;
-    void acceptVisitor(constVisitor& visitor) const override;
-};
+struct NodeNot :
+    Visitable<boolNode, NodeNot, VISITORS>
+{};
 
-//	Assign, Pays
-struct NodeAssign : public aNode 
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodePays : public aNode 
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+//  Leaves
 
 //	Market access
-struct NodeSpot : public dNode 
-{
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
+struct NodeSpot :    
+    Visitable<exprNode, NodeSpot, VISITORS>
+{};
 
-//	If
-struct NodeIf : public aNode
+//  Const
+struct NodeConst :
+    Visitable<exprNode, NodeConst, VISITORS>
 {
-    int					firstElse;
-    //	For fuzzy eval: indices of variables affected in statements, including nested
-    vector<unsigned>	affectedVars;
-    //	Always true/false as per domain processor
-    bool				alwaysTrue;
-    bool				alwaysFalse;
-
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
-};
-
-struct NodeConst : public dNode
-{
-    NodeConst(const double val) 
+    NodeConst(const double val)
     {
         isConst = true;
         constVal = val;
     }
-
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
 };
 
-struct NodeVar : public dNode
+struct NodeTrue :
+    Visitable<boolNode, NodeTrue, VISITORS>
+{
+    NodeTrue()
+    {
+        alwaysTrue = true;
+    }
+};
+
+struct NodeFalse :
+    Visitable<boolNode, NodeFalse, VISITORS>
+{
+    NodeFalse()
+    {
+        alwaysFalse = true;
+    }
+};
+
+//  Variable
+struct NodeVar :
+    Visitable<exprNode, NodeVar, VISITORS>
 {
     NodeVar(const string n) : name(n)
     {
@@ -312,7 +248,37 @@ struct NodeVar : public dNode
 
     const string		name;
     unsigned			index;
-
-	void acceptVisitor( Visitor& visitor) override;
-	void acceptVisitor( constVisitor& visitor) const override;
 };
+
+//	Assign, Pays
+
+struct NodeAssign :
+    Visitable<actNode, NodeAssign, VISITORS>
+{};
+
+struct NodePays :
+    Visitable<actNode, NodePays, VISITORS>
+{};
+
+//	If
+struct NodeIf :
+    Visitable<actNode, NodeIf, VISITORS>
+{
+    int					firstElse;
+    //	For fuzzy eval: indices of variables affected in statements, including nested
+    vector<unsigned>	affectedVars;
+    //	Always true/false as per domain processor
+    bool				alwaysTrue;
+    bool				alwaysFalse;
+};
+
+//	Collection of statements
+struct NodeCollect : 
+    Visitable<actNode, NodeCollect, VISITORS>
+{};
+
+
+
+
+
+

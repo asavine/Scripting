@@ -24,7 +24,6 @@ using namespace std;
 #include <regex>
 #include <algorithm>
 
-#include "scriptingNodes.h"
 #include "scriptingProduct.h"
 
 Event parse( const string& eventString);
@@ -116,7 +115,7 @@ class Parser
 			auto rhs = parseExprL2( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = op == '+'? buildBinary<NodeAdd>( lhs, rhs) : buildBinary<NodeSubtract>( lhs, rhs);
+			lhs = op == '+'? buildBinary<NodeAdd>( lhs, rhs) : buildBinary<NodeSub>( lhs, rhs);
 		}
 
 		//	No more match, return lhs
@@ -401,7 +400,7 @@ class Parser
 	//	Helpers for elementary conditions
 	static ExprTree buildEqual( ExprTree& lhs, ExprTree& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
+		auto expr = buildBinary<NodeSub>( lhs,rhs); 
 		auto top = make_node<NodeEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
@@ -418,8 +417,8 @@ class Parser
 	}
 	static ExprTree buildSuperior( ExprTree& lhs, ExprTree& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
-		auto top = make_node<NodeSuperior>();
+		auto expr = buildBinary<NodeSub>( lhs,rhs); 
+		auto top = make_node<NodeSup>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
 		top->eps = eps;
@@ -427,7 +426,7 @@ class Parser
 	}
 	static ExprTree buildSupEqual( ExprTree& lhs, ExprTree& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
+		auto expr = buildBinary<NodeSub>( lhs,rhs); 
 		auto top = make_node<NodeSupEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);

@@ -20,8 +20,8 @@ As long as this comment is preserved at the top of the file
 
 #include <iostream>
 
-#include "scriptingNodes.h"
 #include "scriptingVisitor.h"
+#include "scriptingNodes.h"
 #include "scriptingScenarios.h"
 
 #include <vector>
@@ -34,10 +34,10 @@ template <class T>
 struct EvalState
 {
     //	State
-    vector<T>				    variables;
+    vector<T> variables;
 
     //  Constructor
-    EvalState(const size_t nVar) : variables (nVar) {}
+    EvalState(const size_t nVar) : variables(nVar) {}
 
     //  Initializer
     void init()
@@ -90,9 +90,8 @@ enum NodeType
 
 #define EPS 1.0e-12
 
-class Compiler : public constVisitor
+class Compiler : public constVisitor<Compiler>
 {
-
 protected:
 
     //	State
@@ -102,12 +101,22 @@ protected:
 
 public:
 
+    using constVisitor<Compiler>::visit;
+
     //	Accessors
 
     //	Access the streams after traversal
-    const tuple<vector<int>, vector<double>, vector<const void*>> streams() 
+    const vector<int>& nodeStream() const
     {
-        return make_tuple(myNodeStream, myConstStream, myDataStream);
+        return myNodeStream;
+    }
+    const vector<double>& constStream() const
+    {
+        return myConstStream;
+    }
+    const vector<const void*>& dataStream() const
+    {
+        return myDataStream;
     }
 
     //	Visitors
@@ -117,7 +126,7 @@ public:
     //  Binaries
 
     template<NodeType IfBin, NodeType IfConstLeft, NodeType IfConstRight>
-    void visitBinary(const dNode& node) 
+    void visitBinary(const exprNode& node)
     {
         if (node.isConst)
         {
@@ -127,56 +136,66 @@ public:
         }
         else
         {
-            const dNode* lhs = downcast<dNode>(node.arguments[0]);
-            const dNode* rhs = downcast<dNode>(node.arguments[1]);
+            const exprNode* lhs = downcast<exprNode>(node.arguments[0]);
+            const exprNode* rhs = downcast<exprNode>(node.arguments[1]);
 
             if (lhs->isConst)
             {
-                node.arguments[1]->acceptVisitor(*this);
+                node.arguments[1]->accept(*this);
                 myNodeStream.push_back(IfConstLeft);
                 myNodeStream.push_back(myConstStream.size());
                 myConstStream.push_back(lhs->constVal);
             }
             else if (rhs->isConst)
             {
-                node.arguments[0]->acceptVisitor(*this);
+                node.arguments[0]->accept(*this);
                 myNodeStream.push_back(IfConstRight);
                 myNodeStream.push_back(myConstStream.size());
                 myConstStream.push_back(rhs->constVal);
             }
             else
             {
-                node.arguments[0]->acceptVisitor(*this);
-                node.arguments[1]->acceptVisitor(*this);
+                node.arguments[0]->accept(*this);
+                node.arguments[1]->accept(*this);
                 myNodeStream.push_back(IfBin);
             }
         }
     }
 
-    void visitAdd(const NodeAdd& node) override
+    void visit(const NodeAdd& node)
     {
         visitBinary<Add, AddConst, AddConst>(node);
     }
-    void visitSubtract(const NodeSubtract& node) override
+    void visit(const NodeSub& node)
     {
         visitBinary<Sub, ConstSub, SubConst>(node);
     }
-    void visitMult(const NodeMult& node) override
+    void visit(const NodeMult& node)
     {
         visitBinary<Mult, MultConst, MultConst>(node);
     }
-    void visitDiv(const NodeDiv& node) override
+    void visit(const NodeDiv& node)
     {
         visitBinary<Div, ConstDiv, DivConst>(node);
     }
-    void visitPow(const NodePow& node) override
+    void visit(const NodePow& node)
     {
         visitBinary<Pow, ConstPow, PowConst>(node);
     }
 
+    void visit(const NodeMax& node)
+    {
+        visitBinary<Max2, Max2Const, Max2Const>(node);
+    }
+
+    void visit(const NodeMin& node)
+    {
+        visitBinary<Min2, Min2Const, Min2Const>(node);
+    }
+
     //	Unaries
-    template<NodeType Instr>
-    void visitUnary(const dNode& node)
+    template<NodeType NT>
+    void visitUnary(const exprNode& node)
     {
         if (node.isConst)
         {
@@ -186,65 +205,32 @@ public:
         }
         else
         {
-            node.arguments[0]->acceptVisitor(*this);
-            myNodeStream.push_back(Instr);
+            node.arguments[0]->accept(*this);
+            myNodeStream.push_back(NT);
         }
     }
 
-    void visitUplus(const NodeUplus& node) override
+    void visit(const NodeUplus& node)
     {
-        visitArguments(node);
+        node.arguments[0]->accept(*this);
     }
 
-    void visitUminus(const NodeUminus& node) override
+    void visit(const NodeUminus& node)
     {
         visitUnary<Uminus>(node);
     }
-    void visitLog(const NodeLog& node) override
+    void visit(const NodeLog& node)
     {
         visitUnary<Log>(node);
     }
-    void visitSqrt(const NodeSqrt& node) override
+    void visit(const NodeSqrt& node)
     {
         visitUnary<Sqrt>(node);
     }
 
     //  Multies
-    void visitMax(const NodeMax& node) override
-    {
-        //  Const?
-        if (node.isConst)
-        {
-            myNodeStream.push_back(Const);
-            myNodeStream.push_back(myConstStream.size());
-            myConstStream.push_back(node.constVal);
-        }
 
-        //  Special case for 2 args since it is so common
-        else 
-        {
-            visitBinary<Max2, Max2Const, Max2Const>(node);
-        }
-    }
-
-    void visitMin(const NodeMin& node) override
-    {
-        //  Const?
-        if (node.isConst)
-        {
-            myNodeStream.push_back(Const);
-            myNodeStream.push_back(myConstStream.size());
-            myConstStream.push_back(node.constVal);
-        }
-
-        else 
-        {
-            visitBinary<Min2, Min2Const, Min2Const>(node);
-        }
-
-    }
-
-    void visitSmooth(const NodeSmooth& node) override
+    void visit(const NodeSmooth& node)
     {
         //  Const?
         if (node.isConst)
@@ -256,110 +242,72 @@ public:
         else
         {
             //  Must come back to optimize that one
-            visitArguments(node); myNodeStream.push_back(Smooth); 
+            visitArguments(node);
+            myNodeStream.push_back(Smooth);
         }
     }
 
     //	Conditions
 
-    void visitTrue(const NodeTrue& node) override
-    {
-        myNodeStream.push_back(True); 
-    }
-
-    void visitFalse(const NodeFalse& node) override
-    {
-        myNodeStream.push_back(False); 
-    }
-
-    void visitNot(const NodeNot& node) override
-    {
-        visitArguments(node); myNodeStream.push_back(Not); myDataStream.push_back(nullptr);
-    }
-
-    void visitAnd(const NodeAnd& node) override
-    {
-        visitArguments(node); myNodeStream.push_back(And); myDataStream.push_back(nullptr);
-    }
-
-    void visitOr(const NodeOr& node) override
-    {
-        visitArguments(node); myNodeStream.push_back(Or); myDataStream.push_back(nullptr);
-    }
-
     template<NodeType NT, typename OP>
-    void visitCondition(const bNode& node, OP op)
+    void visitCondition(const boolNode& node, OP op)
     {
-        const dNode* lhs = downcast<dNode>(node.arguments[0]);
+        const exprNode* arg = downcast<exprNode>(node.arguments[0]);
 
-        if (lhs->isConst)
+        if (arg->isConst)
         {
-            myNodeStream.push_back(op(lhs->constVal) ? True: False);
+            myNodeStream.push_back(op(arg->constVal) ? True : False);
 
         }
         else
         {
-            node.arguments[0]->acceptVisitor(*this);
+            node.arguments[0]->accept(*this);
             myNodeStream.push_back(NT);
         }
     }
 
-    void visitEqual(const NodeEqual& node) override
+    void visit(const NodeEqual& node)
     {
-        visitCondition<Equal>(node, [](const double x) {return fabs(x) < EPS; });
+        visitCondition<Equal>(node, [](const double x) {return x == 0.0; });
     }
 
-    void visitSuperior(const NodeSuperior& node) override
+    void visit(const NodeSup& node)
     {
-        visitCondition<Sup>(node, [](const double x) {return x > EPS; });
+        visitCondition<Sup>(node, [](const double x) {return x > 0.0; });
     }
-    void visitSupEqual(const NodeSupEqual& node) override
+    void visit(const NodeSupEqual& node)
     {
         visitCondition<SupEqual>(node, [](const double x) {return x > -EPS; });
     }
 
-    //	Instructions
-    void visitIf(const NodeIf& node) override
+    //  And/Or/Not
+
+    void visit(const NodeAnd& node)
     {
-        //  Visit condition
-        node.arguments[0]->acceptVisitor(*this);
-
-        //  Mark instruction
-        myNodeStream.push_back(node.firstElse == -1? If : IfElse);
-        //  Record space
-        const size_t thisSpace = myNodeStream.size() - 1;
-        //  Make 2 spaces for last if-true and last if-false
-        myNodeStream.push_back(0); 
-        if (node.firstElse != -1) myNodeStream.push_back(0);
-
-        //  Visit if-true statements
-        const auto lastTrue = node.firstElse == -1 ? node.arguments.size() - 1 : node.firstElse - 1;
-        for (size_t i = 1; i <= lastTrue; ++i)
-        {
-            node.arguments[i]->acceptVisitor(*this);
-        }
-        //  Record last if-true space
-        myNodeStream[thisSpace+1] = myNodeStream.size();
-
-        //  Visit if-false statements
-        const size_t n = node.arguments.size();
-        if (node.firstElse != -1)
-        {
-            for (size_t i = node.firstElse; i < n; ++i)
-            {
-                {
-                    node.arguments[i]->acceptVisitor(*this);
-                }
-            }
-            //  Record last if-false space
-            myNodeStream[thisSpace + 2] = myNodeStream.size();
-        }
+        node.arguments[0]->accept(*this);
+        node.arguments[1]->accept(*this);
+        myNodeStream.push_back(And);
     }
 
-    void visitAssign(const NodeAssign& node) override
+    void visit(const NodeOr& node)
+    {
+        node.arguments[0]->accept(*this);
+        node.arguments[1]->accept(*this);
+        myNodeStream.push_back(Or);
+    }
+
+    void visit(const NodeNot& node)
+    {
+        node.arguments[0]->accept(*this);
+        myNodeStream.push_back(Not);
+    }
+
+    //  Assign, pays
+
+    void visit(const NodeAssign& node)
     {
         const NodeVar* var = downcast<NodeVar>(node.arguments[0]);
-        const dNode* rhs = downcast<dNode>(node.arguments[1]);
+        const exprNode* rhs = downcast<exprNode>(node.arguments[1]);
 
         if (rhs->isConst)
         {
@@ -369,16 +317,16 @@ public:
         }
         else
         {
-            node.arguments[1]->acceptVisitor(*this);
+            node.arguments[1]->accept(*this);
             myNodeStream.push_back(Assign);
         }
         myNodeStream.push_back(var->index);
     }
 
-    void visitPays(const NodePays& node) override
+    void visit(const NodePays& node)
     {
         const NodeVar* var = downcast<NodeVar>(node.arguments[0]);
-        const dNode* rhs = downcast<dNode>(node.arguments[1]);
+        const exprNode* rhs = downcast<exprNode>(node.arguments[1]);
 
         if (rhs->isConst)
         {
@@ -388,38 +336,85 @@ public:
         }
         else
         {
-            node.arguments[1]->acceptVisitor(*this);
+            node.arguments[1]->accept(*this);
             myNodeStream.push_back(Pays);
         }
         myNodeStream.push_back(var->index);
     }
 
-    //	Variables and constants
-    void visitVar(const NodeVar& node) override
+    //  Leaves
+
+    void visit(const NodeVar& node)
     {
-        myNodeStream.push_back(Var); 
-        myNodeStream.push_back(node.index); 
+        myNodeStream.push_back(Var);
+        myNodeStream.push_back(node.index);
     }
 
-    void visitConst(const NodeConst& node) override
+    void visit(const NodeConst& node)
     {
-        myNodeStream.push_back(Const); 
+        myNodeStream.push_back(Const);
         myConstStream.push_back(node.constVal);
     }
 
-    //	Scenario related
-    void visitSpot(const NodeSpot& node) override
+    void visit(const NodeTrue& node)
     {
-        myNodeStream.push_back(Spot); 
+        myNodeStream.push_back(True);
     }
 
-    void visitCollect(const NodeCollect& node) override
+    void visit(const NodeFalse& node)
+    {
+        myNodeStream.push_back(False);
+    }
+
+    //	Scenario related
+    void visit(const NodeSpot& node)
+    {
+        myNodeStream.push_back(Spot);
+    }
+
+    //	Instructions
+    void visit(const NodeIf& node)
+    {
+        //  Visit condition
+        node.arguments[0]->accept(*this);
+
+        //  Mark instruction
+        myNodeStream.push_back(node.firstElse == -1 ? If : IfElse);
+        //  Record space
+        const size_t thisSpace = myNodeStream.size() - 1;
+        //  Make 2 spaces for last if-true and last if-false
+        myNodeStream.push_back(0);
+        if (node.firstElse != -1) myNodeStream.push_back(0);
+
+        //  Visit if-true statements
+        const auto lastTrue = node.firstElse == -1 ? node.arguments.size() - 1 : node.firstElse - 1;
+        for (size_t i = 1; i <= lastTrue; ++i)
+        {
+            node.arguments[i]->accept(*this);
+        }
+        //  Record last if-true space
+        myNodeStream[thisSpace + 1] = myNodeStream.size();
+
+        //  Visit if-false statements
+        const size_t n = node.arguments.size();
+        if (node.firstElse != -1)
+        {
+            for (size_t i = node.firstElse; i < n; ++i)
+            {
+                {
+                    node.arguments[i]->accept(*this);
+                }
+            }
+            //  Record last if-false space
+            myNodeStream[thisSpace + 2] = myNodeStream.size();
+        }
+    }
+
+    void visit(const NodeCollect& node)
     {
         visitArguments(node);
     }
 };
-
-
 
 template <class T>
 inline void evalCompiled(
@@ -433,9 +428,9 @@ inline void evalCompiled(
     EvalState<T>&               state,
     //  First (included), last (excluded)
     const size_t                first = 0,
-    const size_t                last = 0) 
+    const size_t                last = 0)
 {
-    const size_t n = last? last: nodeStream.size();
+    const size_t n = last ? last : nodeStream.size();
     size_t i = first;
 
     //  Work space
@@ -452,7 +447,7 @@ inline void evalCompiled(
         //  Big switch
         switch (nodeStream[i])
         {
-        
+
         case Add:
 
             dStack[1] += dStack.top();
@@ -593,7 +588,7 @@ inline void evalCompiled(
             break;
 
         case Var:
-        
+
             dStack.push(state.variables[nodeStream[++i]]);
 
             ++i;
@@ -607,7 +602,7 @@ inline void evalCompiled(
             break;
 
         case Assign:
-        
+
             idx = nodeStream[++i];
             state.variables[idx] = dStack.top();
             dStack.pop();
@@ -656,7 +651,7 @@ inline void evalCompiled(
 
             bStack.pop();
 
-        break;
+            break;
 
         case IfElse:
 
@@ -667,7 +662,7 @@ inline void evalCompiled(
             else
             {
                 //  Cannot avoid nested call here
-                evalCompiled(nodeStream, constStream, dataStream, scen, state, i+3, nodeStream[i+1]);
+                evalCompiled(nodeStream, constStream, dataStream, scen, state, i + 3, nodeStream[i + 1]);
                 i = nodeStream[i + 2];
             }
 

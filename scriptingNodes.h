@@ -292,7 +292,7 @@ struct NodeIf : public aNode
 
 struct NodeConst : public dNode
 {
-    NodeConst(const double val)
+    NodeConst(const double val) 
     {
         isConst = true;
         constVal = val;
@@ -304,13 +304,13 @@ struct NodeConst : public dNode
 
 struct NodeVar : public dNode
 {
-    NodeVar()
+    NodeVar(const string n) : name(n)
     {
         isConst = true;
         constVal = 0.0;
     }
 
-    string				name;
+    const string		name;
     unsigned			index;
 
 	void acceptVisitor( Visitor& visitor) override;

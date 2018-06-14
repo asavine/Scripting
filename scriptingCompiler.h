@@ -154,7 +154,7 @@ public:
                 myConstStream.push_back(rhs->constVal);
             }
             else
-            {
+            {            
                 node.arguments[0]->accept(*this);
                 node.arguments[1]->accept(*this);
                 myNodeStream.push_back(IfBin);
@@ -353,6 +353,7 @@ public:
     void visit(const NodeConst& node)
     {
         myNodeStream.push_back(Const);
+        myNodeStream.push_back(myConstStream.size());
         myConstStream.push_back(node.constVal);
     }
 

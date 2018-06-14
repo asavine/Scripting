@@ -6,6 +6,7 @@
 #include <string>
 #include <assert.h>
 #pragma warning ( disable : 4996 )
+#pragma warning(disable : 4297)
 
 using namespace std;
 

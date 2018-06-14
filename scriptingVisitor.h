@@ -15,7 +15,6 @@ As long as this comment is preserved at the top of the file
 */
 
 #pragma once
-#pragma warning(disable : 4250)
 
 #include "visitorList.h"
 

@@ -137,3 +137,77 @@ struct Visitable<Base, Concrete, V, Vs...> : Visitable<Base, Concrete, Vs...>
     }
 
 };
+
+/*
+
+template <typename V, bool CONST>
+struct VBImpl;
+
+template <typename V>
+struct VBImpl<typename V, false>
+{
+    virtual void accept(V& visitor) = 0;
+};
+
+template <typename V>
+struct VBImpl<typename V, true>
+{
+    virtual void accept(V& visitor) const = 0;
+};
+
+template <typename... Vs>
+struct VisitableBase;
+
+template <typename V>
+struct VisitableBase<V> : VBImpl<V, is_base_of<typename Visitor<V>, V>::value>
+{
+    using VBImpl<V, is_base_of<typename Visitor<V>, V>::value>::accept;
+};
+
+template <typename V, typename... Vs>
+struct VisitableBase<V, Vs...> : VBImpl<V, is_base_of<typename Visitor<V>, V>::value>, VisitableBase<Vs...>
+{
+    using VisitableBase<Vs...>::accept;
+    using VBImpl<V, is_base_of<typename Visitor<V>, V>::value>::accept;
+};
+
+//  Visitable
+
+template <typename V, bool CONST>
+struct VImpl;
+
+template <typename V>
+struct VImpl<typename V, false>
+{
+    void accept(V& visitor) override
+    {
+        visitor.visit(static_cast<Concrete&>(*this));
+    }
+};
+
+template <typename V>
+struct VImpl<typename V, true>
+{
+    void accept(V& visitor) const override
+    {
+        visitor.visit(static_cast<const Concrete&>(*this));
+    }
+};
+
+template <typename Base, typename Concrete, typename... Vs>
+struct Visitable;
+
+template <typename Base, typename Concrete, typename V>
+struct Visitable<Base, Concrete, V> : Base, VImpl<V, is_base_of<typename Visitor<V>, V>::value>
+{
+    using VImpl<V, is_base_of<typename Visitor<V>, V>::value>::accept;
+};
+
+template <typename Base, typename Concrete, typename V, typename... Vs>
+struct Visitable<Base, Concrete, V, Vs...> : VImpl<V, is_base_of<typename Visitor<V>, V>::value>, Visitable<Base, Concrete, Vs...>
+{
+    using  Visitable<Base, Concrete, Vs...>::accept;
+    using VImpl<V, is_base_of<typename Visitor<V>, V>::value>::accept;
+};
+
+*/

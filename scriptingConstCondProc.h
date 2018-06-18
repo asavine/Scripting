@@ -42,12 +42,7 @@ class ConstCondProcessor : public Visitor<ConstCondProcessor>
 
 public:
 
-    //	Overload catch-all-nodes visitor to visit arguments plus set myCurrent
-    template <class NODE>
-    enable_if_t<is_same<NODE, remove_const_t<NODE>>::value && !hasConstVisit<ConstCondProcessor>::forNodeType<NODE>()> visit(NODE& node)
-    {
-        visitArgsSetCurrent(node);
-    }
+    using Visitor<ConstCondProcessor>::visit;
 
 	//	This patricular visitor modifies the structure of the tree, hence it must be called only
 	//		with this method from the top of every tree, passing a ref on the unique_ptr holding 

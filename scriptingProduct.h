@@ -16,29 +16,27 @@ As long as this comment is preserved at the top of the file
 
 #pragma once
 
+//  Base
 #include "scriptingNodes.h"
+
+//  All the nodes and visitors
+#include "visitorHeaders.h"
+
+//  Parser
 #include "scriptingParser.h"
-#include "scriptingVisitor.h"
-#include "scriptingVarIndexer.h"
-#include "scriptingDebugger.h"
-#include "scriptingEvaluator.h"
-#include "scriptingCompiler.h"
-#include "scriptingFuzzyEval.h"
+
+//  Scenarios
 #include "scriptingScenarios.h"
-#include "scriptingDomainProc.h"
-#include "scriptingConstCondProc.h"
-#include "scriptingConstProcessor.h"
 
 using namespace std;
 #include <vector>
 
-using Statement = ExprTree;
-
-using Event = vector<Statement>;
-
 //	Date class from your date library
 //	class Date;
 using Date = int;
+
+//  The Product class is the top level API for scripted instruments
+//  Client code addresses scripting from here only
 
 class Product
 {
@@ -48,8 +46,8 @@ class Product
 
     //  Compiled form
     vector<vector<int>>         myNodeStreams;
-    vector<vector<const void*>> myDataStreams;
     vector<vector<double>>      myConstStreams;
+    vector<vector<const void*>> myDataStreams;
 
 public:
 
@@ -72,15 +70,15 @@ public:
 
 	//	Evaluator factory
 	template <class T>
-    unique_ptr<Evaluator<T>> buildEvaluator()
+    Evaluator<T> buildEvaluator()
 	{
 		//	Move
-		return unique_ptr<Evaluator<T>>( new Evaluator<T>( myVariables.size()));
+		return Evaluator<T>( myVariables.size());
 	}
     template <class T>
-	unique_ptr<Evaluator<T>> buildFuzzyEvaluator( const size_t maxNestedIfs, const double defEps)
+	FuzzyEvaluator<T> buildFuzzyEvaluator( const size_t maxNestedIfs, const double defEps)
 	{
-		return unique_ptr<Evaluator<T>>( new FuzzyEvaluator<T>( myVariables.size(), maxNestedIfs, defEps));
+		return FuzzyEvaluator<T>( myVariables.size(), maxNestedIfs, defEps);
 	}
 
 	//	Scenario factory
@@ -91,7 +89,7 @@ public:
 		return unique_ptr<Scenario<T>>( new Scenario<T>( myEventDates.size()));
 	}
 
-	//	Parser
+	//	Parser : builds a scripted product out of text scripts
 
 	//	Build events out of event strings
 	template<class EvtIt>
@@ -112,7 +110,8 @@ public:
 	//	Visitors
 
 	//	Sequentially visit all statements in all events
-	void visit( Visitor& v)
+	template<class V>
+    void visit(Visitor<V>& v)
 	{
 		//	Loop over events
 		for( auto& evt : myEvents)
@@ -121,14 +120,31 @@ public:
 			for( auto& stat : evt)
 			{
 				//	Visit statement
-				v.visit( stat);
+                stat->accept(static_cast<V&>(v));
 			}
 		}
 	}
 
-	//	Evaluate all statements in all events
-    template <class T>
-	void evaluate( const Scenario<T>& scen, Evaluator<T>& eval) const
+    //  Same for const visitors
+    template<class V>
+    void visit(constVisitor<V>& v) const
+    {
+        //	Loop over events
+        for (const auto& evt : myEvents)
+        {
+            //	Loop over statements in event
+            for (const auto& stat : evt)
+            {
+                //	Visit statement
+                stat->accept(static_cast<V&>(v));
+            }
+        }
+    }
+    
+    //	Evaluate the product in a given scenario with the given evaluator
+    //  The product must be pre-processed first
+    template <class T, class Eval>
+	void evaluate( const Scenario<T>& scen, Eval& eval) const
 	{
 		//	Set scenario
 		eval.setScenario( &scen);
@@ -137,21 +153,22 @@ public:
 		eval.init();
 
 		//	Loop over events
-		for(auto i=0; i<myEvents.size(); ++i)
+		for(size_t i=0; i<myEvents.size(); ++i)
 		{
 			//	Set current event
 			eval.setCurEvt( i);
 			
 			//	Loop over statements in event
-			for( auto& statIt : myEvents[i])
+			for( const auto& stat : myEvents[i])
 			{
 				//	Visit statement
-				eval.visit( statIt);
+				stat->accept(eval);
 			}
 		}
 	}
 
     //	Evaluate all compiled statements in all events
+    //  The product must be pre-processed and compiled first
     template <class T>
     void evaluateCompiled(
         const Scenario<T>& scen, 
@@ -161,13 +178,15 @@ public:
         state.init();
 
         //	Loop over events
-        for (auto i = 0; i<myEvents.size(); ++i)
+        for (size_t i = 0; i<myEvents.size(); ++i)
         {
             //	Evaluate the compiled events
             evalCompiled(myNodeStreams[i], myConstStreams[i], myDataStreams[i], scen[i], state);
         }
     }
     
+    //  Processors
+
     //	Index all variables
 	void indexVariables()
 	{
@@ -234,16 +253,18 @@ public:
 		}
 	}
 
-    //	Compile into functions, one per event date
+    //	Compile into streams of instructions, constants and data, one per event date
     void compile()
     {
         //  First, identify constants
         constProcess();
 
-        //  One per event date
+        //  Clear
         myNodeStreams.clear();
         myConstStreams.clear();
         myDataStreams.clear();
+        
+        //  One per event date
         myNodeStreams.reserve(myEvents.size());
         myConstStreams.reserve(myEvents.size());
         myDataStreams.reserve(myEvents.size());
@@ -258,14 +279,13 @@ public:
             for (auto& stat : evt)
             {
                 //	Visit statement
-                comp.visit(stat);
+                stat->accept(comp);
             }
 
-            //  Get compiled function
-            auto& p = comp.streams();
-            myNodeStreams.push_back(get<0>(p));
-            myConstStreams.push_back(get<1>(p));
-            myDataStreams.push_back(get<2>(p));
+            //  Get compiled 
+            myNodeStreams.push_back(comp.nodeStream());
+            myConstStreams.push_back(comp.constStream());
+            myDataStreams.push_back(comp.dataStream());
         }
     }
 
@@ -290,7 +310,7 @@ public:
 	void debug( ostream& ost)
 	{
         size_t v = 0;
-		for( auto& it=myVariables.begin(); it!=myVariables.end(); ++it)
+		for( auto it=myVariables.begin(); it!=myVariables.end(); ++it)
 		{
 			ost << "Var[" << v++ << "] = " << *it << endl;
 		}
@@ -303,18 +323,10 @@ public:
 			unsigned s=0;
 			for( auto& stat : evtIt)
 			{
-				d.visit( stat);
+				stat->accept(d);
 				ost << "Statement: " << ++s << endl;
 				ost << d.getString() << endl;
 			}
 		}
 	}
 };
-
-/*
-class Date
-{
-public:
-	int					myDaysFromEpoch;
-};
-*/

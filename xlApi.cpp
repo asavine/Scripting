@@ -1,16 +1,17 @@
 #pragma warning(disable:4786)
-#include "XLOper12.h"
+#include "XlApi.h"
 
 #include <iostream>
 #include <stdlib.h>
 #include <string>
 #include <assert.h>
 #pragma warning ( disable : 4996 )
+#pragma warning(disable : 4297)
 
 using namespace std;
 
-XLOper12 ErrorXLOper12(int e) { XLOper12 x; x.xltype=xltypeErr; x.val.err=e; return x; }
-const XLOper12 ErrorNotAvailable12 = ErrorXLOper12(xlerrNA);
+myXlOper ErrormyXlOper(int e) { myXlOper x; x.xltype=xltypeErr; x.val.err=e; return x; }
+const myXlOper ErrorNotAvailable12 = ErrormyXlOper(xlerrNA);
 
 const char * xll_last_call = 0;
 static int xll12_alloc_counter_return = 0;
@@ -18,41 +19,41 @@ static int xll12_alloc_counter_string = 0;
 static int xll12_alloc_counter_array = 0;
 
 namespace {
-        void init_string(XLOper12& op, const char* cstr)
+        void init_string(myXlOper& op, const char* cstr)
         {
                 op.xltype = xltypeStr | xlbitDLLFree;
                 op.val.str = 0;
 
-                unsigned int len = strlen(cstr);
+                auto len = strlen(cstr);
                 op.val.str = new XCHAR[len+2];          
                 op.val.str[0] = (XCHAR) min(len,32765u);
                 op.val.str[len+1] = '\0';
 
-                MultiByteToWideChar(CP_ACP, 0, cstr, len, op.val.str+1, len);
+                MultiByteToWideChar(CP_ACP, 0, cstr, int(len), op.val.str+1, int(len));
 
                 xll12_alloc_counter_string++;
         }
 }
 
-XLOper12::XLOper12(const char* str) {
+myXlOper::myXlOper(const char* str) {
         init_string(*this, str);
 }
-XLOper12::XLOper12(const std::string& str) {
+myXlOper::myXlOper(const std::string& str) {
         init_string(*this, str.c_str());
 }
 
-XLOper12::XLOper12(unsigned int rows, unsigned int columns) {
+myXlOper::myXlOper(size_t rows, size_t columns) {
         xltype = xltypeMulti | xlbitDLLFree; 
         val.array.rows = (unsigned short)rows;
         val.array.columns = (unsigned short)columns;
-        val.array.lparray = new XLOper12[rows*columns];
+        val.array.lparray = new myXlOper[rows*columns];
 
         xll12_alloc_counter_array++;
 }
 
 // ----------------------------------------------------------------------------
 
-XLOper12::operator double() const
+myXlOper::operator double() const
 {
         if (Type() != xltypeNum)
                 return 0.0;
@@ -60,7 +61,7 @@ XLOper12::operator double() const
         return val.num;
 }
 
-XLOper12::operator bool() const
+myXlOper::operator bool() const
 {
         if (Type()==xltypeMissing  || Type()==xltypeNil)
                 return false;
@@ -68,7 +69,7 @@ XLOper12::operator bool() const
         return val.xbool?true:false;
 }
 
-XLOper12::operator std::string() const
+myXlOper::operator std::string() const
 {
         if (Type() != xltypeStr)
                 return "";
@@ -84,20 +85,20 @@ XLOper12::operator std::string() const
         return res;
 }
 
-XLOper12& XLOper12::operator()(unsigned int row, unsigned int column)
+myXlOper& myXlOper::operator()(unsigned int row, unsigned int column)
 {
         if(Type()!=xltypeMulti || (RW)row>=val.array.rows || (COL)column>=val.array.columns)
                 throw WORD(xlretAbort);
-        return (XLOper12&)val.array.lparray[row*val.array.columns+column];
+        return (myXlOper&)val.array.lparray[row*val.array.columns+column];
 }
 
-const XLOper12& XLOper12::operator()(unsigned int row, unsigned int column) const
+const myXlOper& myXlOper::operator()(unsigned int row, unsigned int column) const
 {
         if(Type()!=xltypeMulti || (RW)row>=val.array.rows || (COL)column>=val.array.columns)
                 throw WORD(xlretAbort);
-        return (XLOper12&)val.array.lparray[row*val.array.columns+column];
+        return (myXlOper&)val.array.lparray[row*val.array.columns+column];
 }
-const XLOper12& XLOper12::operator()(unsigned int rank) const
+const myXlOper& myXlOper::operator()(unsigned int rank) const
 {
         // case single value
         if(Type()!=xltypeMulti) {
@@ -111,32 +112,32 @@ const XLOper12& XLOper12::operator()(unsigned int rank) const
         unsigned int max_rank = val.array.rows*val.array.columns;
         if(rank>=max_rank)
                 throw WORD(xlretAbort);
-        return (XLOper12&)val.array.lparray[rank];
+        return (myXlOper&)val.array.lparray[rank];
 }
 
-int XLOper12::Type() const
+int myXlOper::Type() const
 {
         return xltype & ~(xlbitXLFree|xlbitDLLFree);
 }
 
-unsigned int XLOper12::Rows() const
+unsigned int myXlOper::Rows() const
 {
         return Type()==xltypeMulti ? (unsigned int)val.array.rows : (unsigned int)0;
 }
 
-unsigned int XLOper12::Cols() const
+unsigned int myXlOper::Cols() const
 {
         return Type()==xltypeMulti ? (unsigned int)val.array.columns : (unsigned int)0;
 }
 
-unsigned int XLOper12::Size()const
+unsigned int myXlOper::Size()const
 {
         return max( 1u, Rows()*Cols() );
 }
 
 // ----------------------------------------------------------------------------
 
-XLOper12::~XLOper12() {
+myXlOper::~myXlOper() {
         bool bFreeByExcel = ((xltype&xlbitXLFree)!=0);
         bool bFreeByDll   = ((xltype&xlbitDLLFree)!=0) ; 
         assert( !(bFreeByExcel&&bFreeByDll) ); // exclusive ownership
@@ -151,7 +152,7 @@ XLOper12::~XLOper12() {
         }
 }
 
-void XLOper12::ExplicitFree()
+void myXlOper::ExplicitFree()
 {
         bool bFreeByExcel = ((xltype&xlbitXLFree)!=0);
         bool bFreeByDll   = ((xltype&xlbitDLLFree)!=0) ; 
@@ -180,7 +181,7 @@ void XLOper12::ExplicitFree()
                                         xll12_alloc_counter_string--;
                                 }
                         }       
-                        delete[] (XLOper12*)val.array.lparray;
+                        delete[] (myXlOper*)val.array.lparray;
                         val.array.rows = val.array.columns = 0;
                         val.array.lparray = NULL;
                         xll12_alloc_counter_array--;
@@ -192,9 +193,9 @@ void XLOper12::ExplicitFree()
         }
 }
 
-XLOper12* return_xloper_raw_ptr(XLOper12& val)
+myXlOper* return_xloper_raw_ptr(myXlOper& val)
 {
-        XLOper12 *ret = new XLOper12();
+        myXlOper *ret = new myXlOper();
         (*ret) = val;
         (*ret).xltype = (*ret).xltype | xlbitDLLFree;
         

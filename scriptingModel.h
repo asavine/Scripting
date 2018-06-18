@@ -16,9 +16,8 @@ As long as this comment is preserved at the top of the file
 
 #pragma once
 
-#include "scriptingScenarios.h"
 #include "scriptingProduct.h"
-#include "scriptingFuzzyEval.h"
+#include "scriptingScenarios.h"
 
 #include "cpp11basicRanGen.h"
 
@@ -78,9 +77,9 @@ public:
     {}
 
 	//	Clone
-	virtual unique_ptr<Model> clone() const override
+	virtual unique_ptr<Model<T>> clone() const override
 	{
-		return unique_ptr<Model>(new SimpleBlackScholes(*this));
+		return unique_ptr<Model<T>>(new SimpleBlackScholes(*this));
 	}
 
     //  Parameter accessors, read only
@@ -171,9 +170,9 @@ public:
     {}
 
 	//	Clone
-	virtual unique_ptr<Model> clone() const override
+	virtual unique_ptr<Model<T>> clone() const override
 	{
-		return unique_ptr<Model>(new SimpleBachelier(*this));
+		return unique_ptr<Model<T>>(new SimpleBachelier(*this));
 	}
 
     //  Parameter accessors, read only
@@ -291,18 +290,18 @@ class ScriptSimulator : public MonteCarloSimulator<T>, public ScriptModelApi<T>
 
 public:
 
-    ScriptSimulator( Model<T>& model, RandomGen& ranGen) : MonteCarloSimulator( model, ranGen) {}
+    ScriptSimulator( Model<T>& model, RandomGen& ranGen) : MonteCarloSimulator<T>( model, ranGen) {}
 
 	void initForScripting( const vector<Date>& eventDates) override
 	{
-        MonteCarloSimulator::init( eventDates);
+        MonteCarloSimulator<T>::init( eventDates);
         myTempSpots.resize( eventDates.size());
         myTempNumeraires.resize(eventDates.size());
     }
 
 	void nextScenario( Scenario<T>& s) override
 	{
-        MonteCarloSimulator::simulateOnePath( myTempSpots, myTempNumeraires);
+        MonteCarloSimulator<T>::simulateOnePath( myTempSpots, myTempNumeraires);
 		
         //  Note the inefficiency
         for(size_t i=0; i<s.size(); ++i)
@@ -338,46 +337,37 @@ inline void simpleBsScriptVal(
 	//	Initialize product
 	Product prd;
 	prd.parseEvents( events.begin(), events.end());
-	unsigned maxNestedIfs = prd.preProcess( fuzzy, skipDoms);
+	size_t maxNestedIfs = prd.preProcess( fuzzy, skipDoms);
 
 	//	Build scenarios
 	unique_ptr<Scenario<double>> scen = prd.buildScenario<double>();
 
-    //  Build evaluator or compile
-	unique_ptr<Evaluator<double>> eval;
-    EvalState<double> state(prd.varNames().size());
-    if (compile)
-    {
-        prd.compile();
-    }
-    else
-    {
-        if (fuzzy) eval = prd.buildFuzzyEvaluator<double>(maxNestedIfs, defEps);
-        else eval = prd.buildEvaluator<double>();
-    }
-
     //  Initialize model and random generator
-    BasicRanGen random( seed);
+    BasicRanGen random(seed);
     unique_ptr<Model<double>> model;
-    if (normal) model.reset( new SimpleBachelier<double>(today, spot, vol, rate));
+    if (normal) model.reset(new SimpleBachelier<double>(today, spot, vol, rate));
     else model.reset(new SimpleBlackScholes<double>(today, spot, vol, rate));
 
-	//	Initialize simulator
-    ScriptSimulator<double> simulator( *model, random);
-    simulator.initForScripting( prd.eventDates());
+    //	Initialize simulator
+    ScriptSimulator<double> simulator(*model, random);
+    simulator.initForScripting(prd.eventDates());
 
-	//	Initialize results
-	varNames = prd.varNames();
-	varVals.resize( varNames.size(), 0.0);
+    //	Initialize results
+    varNames = prd.varNames();
+    varVals.resize(varNames.size(), 0.0);
 
-	//	Loop over simulations
-	for( size_t i=0; i<numSim; ++i)
-	{
-		//	Generate next scenario into scen
-		simulator.nextScenario( *scen);
-		
-        if (compile)
+    //  Compiled - not implemented (yet) for fuzzy
+    if (compile)
+    {
+        EvalState<double> state(prd.varNames().size());
+        prd.compile();
+
+        //	Loop over simulations
+        for (size_t i = 0; i<numSim; ++i)
         {
+            //	Generate next scenario into scen
+            simulator.nextScenario(*scen);
+
             //	Evaluate product 
             prd.evaluateCompiled(*scen, state);
             //	Update results
@@ -387,18 +377,51 @@ inline void simpleBsScriptVal(
                 varVals[v] += state.variables[v];
             }
         }
-        else
+    }
+
+    //  Fuzzy
+    else if (fuzzy)
+    {
+        FuzzyEvaluator<double> eval = prd.buildFuzzyEvaluator<double>(maxNestedIfs, defEps);
+
+        //	Loop over simulations
+        for (size_t i = 0; i<numSim; ++i)
         {
+            //	Generate next scenario into scen
+            simulator.nextScenario(*scen);
+
             //	Evaluate product 
-            prd.evaluate(*scen, *eval);
+            prd.evaluate(*scen, eval);
             //	Update results
             const size_t n = varVals.size();
             for (size_t v = 0; v<n; ++v)
             {
-                varVals[v] += eval->varVals()[v];
+                varVals[v] += eval.varVals()[v];
             }
         }
-	}
+    }
+
+    //  Evaluator
+    else
+    {
+        Evaluator<double> eval = prd.buildEvaluator<double>();
+
+        //	Loop over simulations
+        for (size_t i = 0; i<numSim; ++i)
+        {
+            //	Generate next scenario into scen
+            simulator.nextScenario(*scen);
+
+            //	Evaluate product 
+            prd.evaluate(*scen, eval);
+            //	Update results
+            const size_t n = varVals.size();
+            for (size_t v = 0; v<n; ++v)
+            {
+                varVals[v] += eval.varVals()[v];
+            }
+        }
+    }
 
     for (auto& v : varVals) v /= numSim;
 }
@@ -427,7 +450,7 @@ inline void simpleBsBarVal(
     //	Initialize simulator
     MonteCarloSimulator<double> simulator(*model, random);
     vector<Date> eventDates = barDates;
-    unsigned lastBar = eventDates.size();
+    size_t lastBar = eventDates.size();
     if (mat > barDates.back()) eventDates.push_back(mat);
     vector<double> spots(eventDates.size()), numeraires(eventDates.size());
     simulator.init(eventDates);

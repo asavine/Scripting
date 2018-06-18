@@ -9,18 +9,8 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="targetver.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="framework.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -75,9 +65,6 @@
     <ClInclude Include="quickStack.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="xlOper12.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="cpp11basicRanGen.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -90,24 +77,24 @@
     <ClInclude Include="scriptingProduct.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="visitorList.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="visitorHeaders.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="packIncludes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="xlApi.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="stdafx.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="xlScripting.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="dllmain.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="MemoryManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="MemoryPool.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="scriptingNodes.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="scriptingParser.cpp">
@@ -122,7 +109,7 @@
     <ClCompile Include="functDomain.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="xlOper12.cpp">
+    <ClCompile Include="xlApi.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

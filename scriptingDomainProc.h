@@ -18,6 +18,8 @@ As long as this comment is preserved at the top of the file
 
 #include "functDomain.h"
 
+#include "scriptingNodes.h"
+
 //#define DUMP
 
 #ifdef DUMP
@@ -43,7 +45,7 @@ using namespace std;
 
 */
 
-class DomainProcessor : public Visitor
+class DomainProcessor : public Visitor<DomainProcessor>
 {
 	//	Fuzzy?
 	const bool				myFuzzy;
@@ -69,8 +71,11 @@ class DomainProcessor : public Visitor
 
 public:
 
+    using Visitor<DomainProcessor>::visit;
+
 	//	Domains start with the singleton 0
-	DomainProcessor( const size_t nVar, const bool fuzzy) : myFuzzy( fuzzy), myVarDomains( nVar, 0.0), myLhsVar( false) {}
+	DomainProcessor( const size_t nVar, const bool fuzzy) : 
+        myFuzzy( fuzzy), myVarDomains( nVar, 0.0), myLhsVar( false) {}
 
 	//	Visitors
 
@@ -78,62 +83,76 @@ public:
 
 	//	Binaries
 	
-	void visitAdd( NodeAdd& node) override
+	void visit( NodeAdd& node) 
 	{ 
 		visitArguments( node); 
 		Domain res = myDomStack[1] + myDomStack[0];
 		myDomStack.pop( 2);
 		myDomStack.push( move( res)); 
 	}
-	void visitSubtract( NodeSubtract& node) override
+	void visit( NodeSub& node) 
 	{ 
 		visitArguments( node); 
 		Domain res = myDomStack[1] - myDomStack[0];
 		myDomStack.pop( 2);
 		myDomStack.push( move( res)); 
 	}
-	void visitMult( NodeMult& node) override
+	void visit( NodeMult& node) 
 	{ 
 		visitArguments( node); 
 		Domain res = myDomStack[1] * myDomStack[0];
 		myDomStack.pop( 2);
 		myDomStack.push( move( res)); 
 	}
-	void visitDiv( NodeDiv& node) override
+	void visit( NodeDiv& node) 
 	{ 
 		visitArguments( node); 
 		Domain res = myDomStack[1] / myDomStack[0];
 		myDomStack.pop( 2);
 		myDomStack.push( move( res)); 
 	}
-	void visitPow( NodePow& node) override
+	void visit( NodePow& node) 
 	{ 
 		visitArguments( node); 
-		Domain res = myDomStack[1].applyFunc2<double(*)(const double, const double)>( pow, myDomStack[0], Interval( Bound::minusInfinity, Bound::plusInfinity));
+		Domain res = myDomStack[1].applyFunc2<double(*)(const double, const double)>( 
+            pow, 
+            myDomStack[0], 
+            Interval( Bound::minusInfinity, Bound::plusInfinity));
 		myDomStack.pop( 2);
 		myDomStack.push( move( res)); 
 	}
 
 	//	Unaries
-	void visitUplus( NodeUplus& node) override { visitArguments( node); }
-	void visitUminus( NodeUminus& node) override { visitArguments( node); myDomStack.top() = -myDomStack.top(); }
+	void visit( NodeUplus& node)  
+    { 
+        visitArguments( node); 
+    }
+	void visit( NodeUminus& node)  
+    { 
+        visitArguments( node); 
+        myDomStack.top() = -myDomStack.top(); 
+    }
 
 	//	Functions
-	void visitLog( NodeLog& node) override
+	void visit( NodeLog& node) 
 	{
 		visitArguments( node); 
-		Domain res = myDomStack.top().applyFunc<double(*)(const double)>( log, Interval( Bound::minusInfinity, Bound::plusInfinity));
+		Domain res = myDomStack.top().applyFunc<double(*)(const double)>( 
+            log, 
+            Interval( Bound::minusInfinity, Bound::plusInfinity));
 		myDomStack.pop();
 		myDomStack.push( move( res)); 
 	}
-	void visitSqrt( NodeSqrt& node) override
-	{
+	void visit( NodeSqrt& node)
+    {
 		visitArguments( node); 
-		Domain res = myDomStack.top().applyFunc<double(*)(const double)>( sqrt, Interval( 0.0, Bound::plusInfinity));
+		Domain res = myDomStack.top().applyFunc<double(*)(const double)>( 
+            sqrt, 
+            Interval( 0.0, Bound::plusInfinity));
 		myDomStack.pop();
 		myDomStack.push( move( res)); 
 	}
-	void visitMax( NodeMax& node) override
+	void visit( NodeMax& node)
 	{
 		visitArguments( node); 
 		Domain res = myDomStack.top();
@@ -145,7 +164,7 @@ public:
 		}
 		myDomStack.push( move( res)); 
 	}
-	void visitMin( NodeMin& node) override
+	void visit( NodeMin& node)
 	{
 		visitArguments( node); 
 		Domain res = myDomStack.top();
@@ -157,7 +176,7 @@ public:
 		}
 		myDomStack.push( move( res)); 
 	}
-	void visitSmooth( NodeSmooth& node) override
+	void visit( NodeSmooth& node) 
 	{
 		visitArguments( node); 
 		
@@ -165,7 +184,10 @@ public:
 		myDomStack.pop();
 
 		//	Makes no sense with non-continuous x
-		if( myDomStack[2].discrete()) throw runtime_error( "Smooth called with discrete x");
+        if (myDomStack[2].discrete())
+        {
+            throw runtime_error("Smooth called with discrete x");
+        }
 				
 		//	Get min and max val if neg and if pos
 		Bound minIfNeg = myDomStack[0].minBound();
@@ -183,7 +205,7 @@ public:
 
 	//	Conditions
 	
-	void visitEqual( NodeEqual& node) override
+	void visit( NodeEqual& node) 
 	{ 
 		visitArguments( node); 
 	
@@ -242,7 +264,7 @@ public:
 		myDomStack.pop();
 	}
 
-	void visitNot( NodeNot& node) override
+	void visit( NodeNot& node) 
 	{ 
 		visitArguments( node); 
 		CondProp cp = myCondStack.top();
@@ -344,17 +366,17 @@ public:
 		myDomStack.pop();
 	}
 
-	void visitSuperior( NodeSuperior& node) override
+	void visit( NodeSup& node) 
 	{
 		visitSupT<true>( node);
 	}
 
-	void visitSupEqual( NodeSupEqual& node) override
+	void visit( NodeSupEqual& node) 
 	{
 		visitSupT<false>( node);
 	}
 
-	void visitAnd( NodeAnd& node) override
+	void visit( NodeAnd& node) 
 	{ 
 		visitArguments( node); 
 		CondProp cp1 = myCondStack.top();
@@ -380,7 +402,7 @@ public:
 			myCondStack.push( trueOrFalse);
 		}
 	}
-	void visitOr( NodeOr& node) override
+	void visit( NodeOr& node) 
 	{ 
 		visitArguments( node); 
 		CondProp cp1 = myCondStack.top();
@@ -408,13 +430,13 @@ public:
 	}
 	
 	//	Instructions
-	void visitIf( NodeIf& node) override
+	void visit( NodeIf& node) 
 	{
 		//	Last "if true" statement index
         size_t lastTrueStat = node.firstElse == -1? node.arguments.size()-1: node.firstElse-1;
 
 		//	Visit condition
-		node.arguments[0]->acceptVisitor( *this);
+		node.arguments[0]->accept( *this);
 
 		//	Always true/false?
 		CondProp cp = myCondStack.top();
@@ -425,7 +447,7 @@ public:
 			node.alwaysTrue = true;
 			node.alwaysFalse = false;
 			//	Visit "if true" statements
-			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->acceptVisitor( *this);
+			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->accept( *this);
 		}
 		else if( cp == alwaysFalse)
 		{
@@ -433,7 +455,7 @@ public:
 			node.alwaysFalse = true;
 			//	Visit "if false" statements, if any
 			if( node.firstElse != -1)
-				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
+				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->accept( *this);
 		}
 		else
 		{
@@ -444,7 +466,7 @@ public:
 			for(size_t i=0; i<node.affectedVars.size(); ++i) domStore0[i] = myVarDomains[node.affectedVars[i]];
 
 			//	Execute if statements
-			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->acceptVisitor( *this);
+			for(size_t i=1; i<=lastTrueStat; ++i) node.arguments[i]->accept( *this);
 
 			//	Record variable domain after if statements are executed
 			vector<Domain> domStore1( node.affectedVars.size());
@@ -455,22 +477,22 @@ public:
 
 			//	Execute else statements if any
 			if( node.firstElse != -1)
-				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
+				for(size_t i=node.firstElse; i<node.arguments.size(); ++i) node.arguments[i]->accept( *this);
 
 			//	Merge domains
 			for(size_t i=0; i<node.affectedVars.size(); ++i) myVarDomains[node.affectedVars[i]].addDomain( domStore1[i]);
 		}
 	}
 
-	void visitAssign( NodeAssign& node) override
+	void visit( NodeAssign& node) 
 	{
 		//	Visit the LHS variable
 		myLhsVar = true;
-		node.arguments[0]->acceptVisitor( *this);
+		node.arguments[0]->accept( *this);
 		myLhsVar = false;
 
 		//	Visit the RHS expression
-		node.arguments[1]->acceptVisitor( *this);
+		node.arguments[1]->accept( *this);
 
 		//	Write RHS domain into variable
 		myVarDomains[myLhsVarIdx] = myDomStack.top();
@@ -479,15 +501,15 @@ public:
 		myDomStack.pop();
 	}
 
-	void visitPays( NodePays& node) override
+	void visit( NodePays& node) 
 	{
 		//	Visit the LHS variable
 		myLhsVar = true;
-		node.arguments[0]->acceptVisitor( *this);
+		node.arguments[0]->accept( *this);
 		myLhsVar = false;
 
 		//	Visit the RHS expression
-		node.arguments[1]->acceptVisitor( *this);
+		node.arguments[1]->accept( *this);
 
 		//	Write RHS domain into variable
 		
@@ -505,7 +527,7 @@ public:
 	}
 
 	//	Variables and constants
-	void visitVar( NodeVar& node) override
+	void visit( NodeVar& node) 
 	{
 		//	LHS?
 		if( myLhsVar)	//	Write
@@ -520,15 +542,16 @@ public:
 		}
 	}
 
-	void visitConst( NodeConst& node) override
+	void visit( NodeConst& node) 
 	{
 		myDomStack.push( node.constVal);
 	}
 
 	//	Scenario related
-	void visitSpot( NodeSpot& node) override
+	void visit( NodeSpot& node) 
 	{
-		static const Domain realDom( Interval( Bound::minusInfinity, Bound::plusInfinity));
+		static const Domain realDom( 
+            Interval( Bound::minusInfinity, Bound::plusInfinity));
 		myDomStack.push( realDom);
 	}
 };

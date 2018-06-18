@@ -19,8 +19,8 @@ As long as this comment is preserved at the top of the file
 #include "framework.h"
 
 //	Additional xl utilities, useful for ranges of strings
-#include "xlOper12.h"
-static XLOper12 error = ErrorNotAvailable12;
+#include "xlApi.h"
+static myXlOper error = ErrorNotAvailable12;
 
 //	Wrappers
 
@@ -30,26 +30,23 @@ double xMultiply2Numbers(double x, double y)
 	return x * y;
 }
 
-#include "scriptingParser.h"
-#include "scriptingDebugger.h"
-#include "scriptingEvaluator.h"
-#include "scriptingProduct.h"
+#include "visitorHeaders.h"
 #include "scriptingModel.h"
 
-extern "C" __declspec(dllexport) XLOper12* TestScript(
-	XLOper12 *xToday,
-	XLOper12 *xSpot,
-	XLOper12 *xVol,
-	XLOper12 *xRate,
-	XLOper12 *xEvtDates,
-	XLOper12 *xEvts,
-	XLOper12 *xNumSim,
-	XLOper12 *xSeed,
-	XLOper12 *xFuzzy,
-	XLOper12 *xEps,
-	XLOper12 *xSkipDoms,
-    XLOper12 *xComp,
-    XLOper12 *xNormal){
+extern "C" __declspec(dllexport) myXlOper* TestScript(
+	myXlOper *xToday,
+	myXlOper *xSpot,
+	myXlOper *xVol,
+	myXlOper *xRate,
+	myXlOper *xEvtDates,
+	myXlOper *xEvts,
+	myXlOper *xNumSim,
+	myXlOper *xSeed,
+	myXlOper *xFuzzy,
+	myXlOper *xEps,
+	myXlOper *xSkipDoms,
+    myXlOper *xComp,
+    myXlOper *xNormal){
 	
 	try{
 
@@ -87,12 +84,12 @@ extern "C" __declspec(dllexport) XLOper12* TestScript(
 
 		simpleBsScriptVal( today, spot, vol, rate, normal, events, numSim, seed, fuzzy, eps, skipDoms, comp, varNames, varVals);
 
-		XLOper12 res( varNames.size(), 2);
+		myXlOper res( unsigned(varNames.size()), 2);
 
 		for( unsigned i=0; i<varNames.size(); ++i)
 		{
-			res(i,0) = XLOper12( varNames[i]);
-			res(i,1) = XLOper12( varVals[i]);
+			res(i,0) = myXlOper( varNames[i]);
+			res(i,1) = myXlOper( varVals[i]);
 		}
 
 		return return_xloper_raw_ptr (res);
@@ -100,7 +97,7 @@ extern "C" __declspec(dllexport) XLOper12* TestScript(
 	} 
 	catch (const exception& e){
 		
-		XLOper12 res( e.what());
+		myXlOper res( e.what());
 		return return_xloper_raw_ptr (res);
 	}
 	catch (...){
@@ -110,18 +107,18 @@ extern "C" __declspec(dllexport) XLOper12* TestScript(
 
 }
 
-extern "C" __declspec(dllexport) XLOper12* TestBar(
-    XLOper12 *xToday,
-    XLOper12 *xSpot,
-    XLOper12 *xVol,
-    XLOper12 *xRate,
-    XLOper12 *xMat,
-    XLOper12 *xStrike,
-    XLOper12 *xBar,
-    XLOper12 *xBarDates,
-    XLOper12 *xNumSim,
-    XLOper12 *xSeed,
-    XLOper12 *xNormal) {
+extern "C" __declspec(dllexport) myXlOper* TestBar(
+    myXlOper *xToday,
+    myXlOper *xSpot,
+    myXlOper *xVol,
+    myXlOper *xRate,
+    myXlOper *xMat,
+    myXlOper *xStrike,
+    myXlOper *xBar,
+    myXlOper *xBarDates,
+    myXlOper *xNumSim,
+    myXlOper *xSeed,
+    myXlOper *xNormal) {
 
     try {
 
@@ -149,15 +146,15 @@ extern "C" __declspec(dllexport) XLOper12* TestBar(
 
         simpleBsBarVal(today, spot, vol, rate, normal, mat, barDates, strike, bar, numSim, seed, res);
 
-        XLOper12 xRes(1, 1);
-        xRes(0, 0) = XLOper12(res);
+        myXlOper xRes(1, 1);
+        xRes(0, 0) = myXlOper(res);
 
         return return_xloper_raw_ptr(xRes);
 
     }
     catch (const exception& e) {
 
-        XLOper12 xRes(e.what());
+        myXlOper xRes(e.what());
         return return_xloper_raw_ptr(xRes);
     }
     catch (...) {
@@ -167,15 +164,15 @@ extern "C" __declspec(dllexport) XLOper12* TestBar(
 
 }
 
-extern "C" __declspec(dllexport) XLOper12* TestAsian(
-    XLOper12 *xToday,
-    XLOper12 *xSpot,
-    XLOper12 *xVol,
-    XLOper12 *xRate,
-    XLOper12 *xBarDates,
-    XLOper12 *xNumSim,
-    XLOper12 *xSeed,
-    XLOper12 *xNormal) {
+extern "C" __declspec(dllexport) myXlOper* TestAsian(
+    myXlOper *xToday,
+    myXlOper *xSpot,
+    myXlOper *xVol,
+    myXlOper *xRate,
+    myXlOper *xBarDates,
+    myXlOper *xNumSim,
+    myXlOper *xSeed,
+    myXlOper *xNormal) {
 
     try {
 
@@ -200,15 +197,15 @@ extern "C" __declspec(dllexport) XLOper12* TestAsian(
 
         simpleBsAsianVal(today, spot, vol, rate, normal, barDates, numSim, seed, res);
 
-        XLOper12 xRes(1, 1);
-        xRes(0, 0) = XLOper12(res);
+        myXlOper xRes(1, 1);
+        xRes(0, 0) = myXlOper(res);
 
         return return_xloper_raw_ptr(xRes);
 
     }
     catch (const exception& e) {
 
-        XLOper12 xRes(e.what());
+        myXlOper xRes(e.what());
         return return_xloper_raw_ptr(xRes);
     }
     catch (...) {
@@ -218,16 +215,16 @@ extern "C" __declspec(dllexport) XLOper12* TestAsian(
 
 }
 
-extern "C" __declspec(dllexport) XLOper12* TestCalls(
-    XLOper12 *xToday,
-    XLOper12 *xSpot,
-    XLOper12 *xVol,
-    XLOper12 *xRate,
-    XLOper12 *xMat,
-    XLOper12 *xStrikes,
-    XLOper12 *xNumSim,
-    XLOper12 *xSeed,
-    XLOper12 *xNormal) {
+extern "C" __declspec(dllexport) myXlOper* TestCalls(
+    myXlOper *xToday,
+    myXlOper *xSpot,
+    myXlOper *xVol,
+    myXlOper *xRate,
+    myXlOper *xMat,
+    myXlOper *xStrikes,
+    myXlOper *xNumSim,
+    myXlOper *xSeed,
+    myXlOper *xNormal) {
 
     try {
 
@@ -254,15 +251,15 @@ extern "C" __declspec(dllexport) XLOper12* TestCalls(
 
         simpleBsCallsVal(today, spot, vol, rate, normal, mat, strikes, numSim, seed, res);
 
-        XLOper12 xRes(strikes.size(), 1);
-        for (auto i = 0; i < strikes.size(); ++i) xRes(i, 0) = XLOper12(res[i]);
+        myXlOper xRes(strikes.size(), 1);
+        for (unsigned i = 0; i < strikes.size(); ++i) xRes(i, 0) = myXlOper(res[i]);
 
         return return_xloper_raw_ptr(xRes);
 
     }
     catch (const exception& e) {
 
-        XLOper12 xRes(e.what());
+        myXlOper xRes(e.what());
         return return_xloper_raw_ptr(xRes);
     }
     catch (...) {
@@ -276,7 +273,7 @@ extern "C" __declspec(dllexport) XLOper12* TestCalls(
 
 extern "C" __declspec(dllexport) int xlAutoOpen(void)
 {
-	XLOPER12 xDLL;
+	myXlOper xDLL;
 
 	Excel12f(xlGetName, &xDLL, 0);
 

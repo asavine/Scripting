@@ -41,10 +41,10 @@ vector<string> tokenize( const string& str)
 	return v;
 }
 
-//	Event = vector<Statement> = vector<ExprTree>
+//	Event = vector<Statement>
 Event parse( const string& eventString)
 {
-	Event e;
+    Event e;
 
 	auto tokens = tokenize( eventString);
 
@@ -56,4 +56,12 @@ Event parse( const string& eventString)
 
 	//	C++11 --> vectors are moved, not copied
 	return e;
+}
+
+//	Single expression
+Expression parseExpression(const string& exprString)
+{
+    auto tokens = tokenize(exprString);
+    auto it = tokens.begin();
+    return Parser<decltype(tokens.begin())>::parseStatement(it, tokens.end());
 }

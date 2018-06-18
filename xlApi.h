@@ -9,28 +9,28 @@ using namespace std;
 
 extern const char * xll_last_call;
 
-struct XLOper12 : public XLOPER12 {
+struct myXlOper : public XLOPER12 {
 
-        XLOper12() {
+        myXlOper() {
                 xltype = xltypeNil;
         }
 
-        explicit XLOper12(double num)
+        explicit myXlOper(double num)
         {
                 xltype = xltypeNum;
                 val.num = num;
         }
 
-        explicit XLOper12(bool Bool) {
+        explicit myXlOper(bool Bool) {
                 xltype = xltypeBool;
                 val.xbool = (unsigned short)(Bool ? TRUE : FALSE);
         }
 
-        explicit XLOper12(const char* str);
-        explicit XLOper12(const std::string& str);
-        explicit XLOper12(unsigned int rows, unsigned int columns);
+        explicit myXlOper(const char* str);
+        explicit myXlOper(const std::string& str);
+        explicit myXlOper(size_t rows, size_t columns);
         
-        ~XLOper12();
+        ~myXlOper();
 
         // ----------------------------------------------------------------------------
                 
@@ -41,9 +41,9 @@ struct XLOper12 : public XLOPER12 {
         operator bool() const;
         operator std::string() const;
         
-        XLOper12& operator()(unsigned int row, unsigned int column);
-        const XLOper12& operator()(unsigned int row, unsigned int column) const;
-        const XLOper12& operator()(unsigned int idx) const;
+        myXlOper& operator()(unsigned int row, unsigned int column);
+        const myXlOper& operator()(unsigned int row, unsigned int column) const;
+        const myXlOper& operator()(unsigned int idx) const;
 
         int Type() const;
         unsigned int Rows() const;
@@ -55,7 +55,7 @@ struct XLOper12 : public XLOPER12 {
         void ExplicitFree();
 };
 
-XLOper12* return_xloper_raw_ptr(XLOper12&); 
+myXlOper* return_xloper_raw_ptr(myXlOper&); 
 
-XLOper12 ErrorXLOper12(int e);
-extern const XLOper12 ErrorNotAvailable12;
+myXlOper ErrormyXlOper(int e);
+extern const myXlOper ErrorNotAvailable12;

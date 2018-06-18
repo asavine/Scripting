@@ -24,8 +24,7 @@ using namespace std;
 #include <regex>
 #include <algorithm>
 
-#include "scriptingNodes.h"
-#include "scriptingProduct.h"
+#include "visitorHeaders.h"
 
 Event parse( const string& eventString);
 vector<string> tokenize( const string& str);
@@ -38,8 +37,6 @@ struct script_error : public runtime_error
 template <class TokIt>
 class Parser
 {
-	friend class DomainProcessor;
-
 	//	Helpers
 
 	//	Find matching closing char, for example matching ) for a (, skipping through nested pairs
@@ -65,12 +62,12 @@ class Parser
 
 	//	Parentheses
 
-	typedef ExprTree (*ParseFunc)( TokIt&, const TokIt);
+	typedef Expression (*ParseFunc)( TokIt&, const TokIt);
 
 	template <ParseFunc FuncOnMatch, ParseFunc FuncOnNoMatch>
-	static ExprTree parseParentheses( TokIt& cur, const TokIt end)
+	static Expression parseParentheses( TokIt& cur, const TokIt end)
 	{	
-		ExprTree tree;
+        Expression tree;
 
 		//	Do we have an opening '('?
 		if( *cur == "(")
@@ -97,7 +94,7 @@ class Parser
 	//	Expressions
 
 	//	Parent, Level1, '+' and '-'
-	static ExprTree parseExpr( TokIt& cur, const TokIt end)
+	static Expression parseExpr( TokIt& cur, const TokIt end)
 	{
 		//	First exhaust all L2 ('*' and '/') and above expressions on the lhs
 		auto lhs = parseExprL2( cur, end);
@@ -110,13 +107,13 @@ class Parser
 			++cur;
 			
 			//	Should not stop straight after operator
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Exhaust all L2 ('*' and '/') and above expressions on the rhs
 			auto rhs = parseExprL2( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = op == '+'? buildBinary<NodeAdd>( lhs, rhs) : buildBinary<NodeSubtract>( lhs, rhs);
+			lhs = op == '+'? make_base_binary<NodeAdd>( lhs, rhs) : make_base_binary<NodeSub>( lhs, rhs);
 		}
 
 		//	No more match, return lhs
@@ -124,7 +121,7 @@ class Parser
 	}
 
 	//	Level2, '*' and '/'
-	static ExprTree parseExprL2( TokIt& cur, const TokIt end)
+	static Expression parseExprL2( TokIt& cur, const TokIt end)
 	{
 		//	First exhaust all L3 ('^') and above expressions on the lhs
 		auto lhs = parseExprL3( cur, end);
@@ -137,13 +134,13 @@ class Parser
 			++cur;
 			
 			//	Should not stop straight after operator
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Exhaust all L3 ('^') and above expressions on the rhs
 			auto rhs = parseExprL3( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = op == '*'? buildBinary<NodeMult>( lhs, rhs) : buildBinary<NodeDiv>( lhs, rhs);
+			lhs = op == '*'? make_base_binary<NodeMult>( lhs, rhs) : make_base_binary<NodeDiv>( lhs, rhs);
 		}
 
 		//	No more match, return lhs
@@ -151,7 +148,7 @@ class Parser
 	}
 
 	//	Level3, '^'
-	static ExprTree parseExprL3( TokIt& cur, const TokIt end)
+	static Expression parseExprL3( TokIt& cur, const TokIt end)
 	{
 		//	First exhaust all L4 (unaries) and above expressions on the lhs
 		auto lhs = parseExprL4( cur, end);
@@ -163,13 +160,13 @@ class Parser
 			++cur;
 			
 			//	Should not stop straight after operator
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Exhaust all L4 (unaries) and above expressions on the rhs
 			auto rhs = parseExprL4( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = buildBinary<NodePow>( lhs, rhs);
+			lhs = make_base_binary<NodePow>( lhs, rhs);
 		}
 
 		//	No more match, return lhs
@@ -177,7 +174,7 @@ class Parser
 	}
 
 	//	Level 4, unaries
-	static ExprTree parseExprL4( TokIt& cur, const TokIt end)
+	static Expression parseExprL4( TokIt& cur, const TokIt end)
 	{		
 		//	Here we check for a match first
 		if( cur != end && ((*cur)[0] == '+' || (*cur)[0] == '-'))	
@@ -187,7 +184,7 @@ class Parser
 			++cur;
 			
 			//	Should not stop straight after operator
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Parse rhs, call recursively to support multiple unaries in a row
 			auto rhs = parseExprL4( cur, end);
@@ -207,7 +204,7 @@ class Parser
 	}
 
 	//	Level 6, variables, constants, functions
-	static ExprTree parseVarConstFunc( TokIt& cur, const TokIt end)
+	static Expression parseVarConstFunc( TokIt& cur, const TokIt end)
 	{
 		//	First check for constants, if the char is a digit or a dot, then we have a number
 		if( (*cur)[0] == '.' || ((*cur)[0] >= '0' && (*cur)[0] <= '9'))
@@ -216,7 +213,7 @@ class Parser
 		}
 
 		//	Check for functions, including those for accessing simulated data
-		ExprTree top;
+        Expression top;
 		unsigned minArg, maxArg;
 		if( *cur == "SPOT")
 		{
@@ -271,7 +268,7 @@ class Parser
 		return parseVar( cur);
 	}
 
-	static ExprTree parseConst( TokIt& cur)
+	static Expression parseConst( TokIt& cur)
 	{
 		//	Convert to double
 		double v = stod( *cur);
@@ -284,7 +281,7 @@ class Parser
 		return move( top); // Explicit move is necessary because we return a base class pointer
 	}
 
-	static vector<ExprTree> parseFuncArg( TokIt& cur, const TokIt end)
+	static vector<Expression> parseFuncArg( TokIt& cur, const TokIt end)
 	{
 		//	Check that we have a '(' and something after that
 		if( (*cur)[0] != '(')
@@ -294,7 +291,7 @@ class Parser
 		TokIt closeIt = findMatch<'(',')'>( cur, end);
 
 		//	Parse expressions between parentheses
-		vector<ExprTree> args;
+		vector<Expression> args;
 		++cur;	//	Over '('
 		while( cur != closeIt)
 		{
@@ -309,7 +306,7 @@ class Parser
 		return args;
 	}
 
-	static ExprTree parseVar( TokIt& cur)
+	static Expression parseVar( TokIt& cur)
 	{
 		//	Check that the variable name starts with a letter
 		if( (*cur)[0] < 'A' || (*cur)[0] > 'Z')
@@ -326,7 +323,7 @@ class Parser
 	//	Conditions
 
 	//	Parent, Level 1, 'or'
-	static ExprTree parseCond( TokIt& cur, const TokIt end)
+	static Expression parseCond( TokIt& cur, const TokIt end)
 	{
 		//	First exhaust all L2 (and) and above (elem) conditions on the lhs
 		auto lhs = parseCondL2( cur, end);
@@ -338,13 +335,13 @@ class Parser
 			++cur;
 
 			//	Should not stop straight after 'or'
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Exhaust all L2 (and) and above (elem) conditions on the rhs		
 			auto rhs = parseCondL2( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = buildBinary<NodeOr>( lhs, rhs);
+			lhs = make_base_binary<NodeOr>( lhs, rhs);
 		}
 
 		//	No more 'or', and L2 and above were exhausted, hence condition is complete
@@ -352,7 +349,7 @@ class Parser
 	}
 
 	//	Level 2 'and'
-	static ExprTree parseCondL2( TokIt& cur, const TokIt end)
+	static Expression parseCondL2( TokIt& cur, const TokIt end)
 	{	
 		//	First parse the leftmost elem or parenthesed condition 
 		auto lhs = parseParentheses<parseCond,parseCondElem>( cur, end);
@@ -364,13 +361,13 @@ class Parser
 			++cur;
 
 			//	Should not stop straight after 'and'
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 			
 			//	Parse the rhs elem or parenthesed condition 
 			auto rhs = parseParentheses<parseCond,parseCondElem>( cur, end);
 
 			//	Build node and assign lhs and rhs as its arguments, store in lhs
-			lhs = buildBinary<NodeAnd>( lhs, rhs);
+			lhs = make_base_binary<NodeAnd>( lhs, rhs);
 		}
 
 		//	No more 'and', so L2 and above were exhausted, return to check for an or
@@ -390,7 +387,7 @@ class Parser
 			//	Over ;:
 			++cur;
 			//	Check for end
-			if( cur == end) throw script_error( "Unexpected end of statement");
+			if( cur == end) throw script_error( "Unexpected end of expression");
 
 			//	Eps
 			eps = stod( *cur);
@@ -399,16 +396,16 @@ class Parser
 	}
 
 	//	Helpers for elementary conditions
-	static ExprTree buildEqual( ExprTree& lhs, ExprTree& rhs, const double eps)
+	static Expression buildEqual(Expression& lhs, Expression& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
+		auto expr = make_base_binary<NodeSub>( lhs,rhs);
 		auto top = make_node<NodeEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
 		top->eps = eps;
 		return move( top);
 	}
-	static ExprTree buildDifferent( ExprTree& lhs, ExprTree& rhs, const double eps)
+	static Expression buildDifferent(Expression& lhs, Expression& rhs, const double eps)
 	{
 		auto eq = buildEqual( lhs, rhs, eps);
 		auto top = make_base_node<NodeNot>();
@@ -416,18 +413,18 @@ class Parser
 		top->arguments[0] = move( eq);
 		return top;
 	}
-	static ExprTree buildSuperior( ExprTree& lhs, ExprTree& rhs, const double eps)
+	static Expression buildSuperior(Expression& lhs, Expression& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
-		auto top = make_node<NodeSuperior>();
+		auto expr = make_base_binary<NodeSub>( lhs,rhs);
+		auto top = make_node<NodeSup>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
 		top->eps = eps;
 		return move( top);
 	}
-	static ExprTree buildSupEqual( ExprTree& lhs, ExprTree& rhs, const double eps)
+	static Expression buildSupEqual(Expression& lhs, Expression& rhs, const double eps)
 	{
-		auto expr = buildBinary<NodeSubtract>( lhs,rhs); 
+		auto expr = make_base_binary<NodeSub>( lhs,rhs);
 		auto top = make_node<NodeSupEqual>();
 		top->arguments.resize( 1);
 		top->arguments[0] = move( expr);
@@ -436,20 +433,20 @@ class Parser
 	}
 
 	//	Highest level elementary
-	static ExprTree parseCondElem( TokIt& cur, const TokIt end)
+	static Expression parseCondElem( TokIt& cur, const TokIt end)
 	{
 		//	Parse the LHS expression
 		auto lhs = parseExpr( cur, end);
 
 		//	Check for end
-		if( cur == end) throw script_error( "Unexpected end of statement");
+		if( cur == end) throw script_error( "Unexpected end of expression");
 
 		//	Advance to token immediately following the comparator
 		string comparator = *cur;
 		++cur;
 
 		//	Check for end
-		if( cur == end) throw script_error( "Unexpected end of statement");
+		if( cur == end) throw script_error( "Unexpected end of expression");
 
 		//	Parse the RHS
 		auto rhs = parseExpr( cur, end);
@@ -470,7 +467,7 @@ class Parser
 
 	//	Statements
 
-	static ExprTree parseIf( TokIt& cur, const TokIt end)
+	static Statement parseIf( TokIt& cur, const TokIt end)
 	{
 		//	Advance to token immediately following "if"
 		++cur;
@@ -511,7 +508,7 @@ class Parser
 			if( cur == end)
 				throw script_error( "'If/then/else' is not followed by 'endIf'");
 			//	Record else index
-			elseIdx = stats.size() + 1;
+			elseIdx = int(stats.size()) + 1;
 		}
 
 		//	Finally build the top node
@@ -529,7 +526,7 @@ class Parser
 		return move( top); // Explicit move is necessary because we return a base class pointer
 	}
 
-	static ExprTree parseAssign( TokIt& cur, const TokIt end, ExprTree& lhs)
+	static Statement parseAssign( TokIt& cur, const TokIt end, Expression& lhs)
 	{
 		//	Advance to token immediately following "="
 		++cur;
@@ -541,10 +538,10 @@ class Parser
 		auto rhs = parseExpr( cur, end);
 
 		//	Build and return the top node
-		return buildBinary<NodeAssign>( lhs, rhs);
+		return make_base_binary<NodeAssign>( lhs, rhs);
 	}
 
-	static ExprTree parsePays( TokIt& cur, const TokIt end, ExprTree& lhs)
+	static Statement parsePays( TokIt& cur, const TokIt end, Expression& lhs)
 	{
 		//	Advance to token immediately following "pays"
 		++cur;
@@ -556,12 +553,17 @@ class Parser
 		auto rhs = parseExpr( cur, end);
 
 		//	Build and return the top node
-		return buildBinary<NodePays>( lhs, rhs);
+		return make_base_binary<NodePays>( lhs, rhs);
 	}
 
 public:
 
-	//	Statement = ExprTree = unique_ptr<Node>
+    static Expression parseExpression(TokIt& cur, const TokIt end)
+    {
+        return parseExpr(cur, end);
+    }
+
+	//	Statement = unique_ptr<Node>
 	static Statement parseStatement( TokIt& cur, const TokIt end)
 	{
 		//	Check for instructions of type 1, so far only 'if'

@@ -27,10 +27,10 @@ As long as this comment is preserved at the top of the file
 #include <memory>
 #include <iterator>
 
-#include "scriptingVisitor.h"
+#include "scriptingNodes.h"
 #include "quickStack.h"
 
-class IfProcessor : public Visitor
+class IfProcessor : public Visitor<IfProcessor>
 {
 	//	Top of the stack: current (possibly nested) if being processed
 	//	Each element in stack: set of indices of variables modified by the corresponding if and nested ifs
@@ -44,6 +44,8 @@ class IfProcessor : public Visitor
 
 public:
 
+    using Visitor<IfProcessor>::visit;
+
 	IfProcessor() : myNestedIfLvl( 0), myMaxNestedIfs( 0) {}
 
 	//	Access to the max nested ifs after the prcessor is run
@@ -54,7 +56,7 @@ public:
 
 	//	Visitors
 
-	void visitIf( NodeIf& node) override
+	void visit( NodeIf& node) 
 	{
 		//	Increase nested if level
 		++myNestedIfLvl;
@@ -64,7 +66,7 @@ public:
 		myVarStack.push( set<size_t>());
 
 		//	Visit arguments, excluding condition
-		for(size_t i = 1; i < node.arguments.size(); ++i) node.arguments[i]->acceptVisitor( *this);
+		for(size_t i = 1; i < node.arguments.size(); ++i) node.arguments[i]->accept( *this);
 
 		//	Copy the top of the stack into the node
 		node.affectedVars.clear();
@@ -81,19 +83,19 @@ public:
 		if( myNestedIfLvl) copy( node.affectedVars.begin(), node.affectedVars.end(), inserter( myVarStack.top(), myVarStack.top().end()));
 	}
 
-	void visitAssign( NodeAssign& node) override
+	void visit( NodeAssign& node) 
 	{
 		//	Visit the lhs var
-		if( myNestedIfLvl) node.arguments[0]->acceptVisitor( *this);
+		if( myNestedIfLvl) node.arguments[0]->accept( *this);
 	}
 
-	void visitPays( NodePays& node) override
+	void visit( NodePays& node) 
 	{
 		//	Visit the lhs var
-		if( myNestedIfLvl) node.arguments[0]->acceptVisitor( *this);
+		if( myNestedIfLvl) node.arguments[0]->accept( *this);
 	}
 
-	void visitVar( NodeVar& node) override
+	void visit( NodeVar& node) 
 	{
 		//	Insert the var idx
 		if( myNestedIfLvl) myVarStack.top().insert( node.index);

@@ -271,3 +271,15 @@ __pycache__/
 
 # Cake - Uncomment if you are using it
 # tools/
+
+# Windows shortcuts
+*.lnk
+*.dat
+*.dat
+/*.dat
+/*.dat
+*.bak
+*.*.bak
+*.*.*.bak
+*.*.*.*.bak
+*.*.*.*.*.bak

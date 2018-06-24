@@ -243,7 +243,7 @@ public:
             //	All steps
             for (size_t i = 1; i<myTimes.size(); ++i)
             {
-                spots[i] = spots[i - 1] * exp(myRate * myDt[0]) + myVol * sqrt((exp(2 * myRate * myDt[0]) - 1) / (2 * myRate)) * G[step++];
+                spots[i] = spots[i - 1] * exp(myRate * myDt[i]) + myVol * sqrt((exp(2 * myRate * myDt[i]) - 1) / (2 * myRate)) * G[step++];
             }
         }
     }

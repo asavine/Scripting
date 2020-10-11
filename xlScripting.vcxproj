@@ -153,7 +153,6 @@
     <ClInclude Include="framework.h" />
     <ClInclude Include="functDomain.h" />
     <ClInclude Include="gaussians.h" />
-    <ClInclude Include="matrix.h" />
     <ClInclude Include="memorymanager.h" />
     <ClInclude Include="MemoryPool.h" />
     <ClInclude Include="quickStack.h" />

@@ -65,7 +65,7 @@ class Parser
 
 	//	Parentheses
 
-	typedef ExprTree (*ParseFunc)( TokIt&, const TokIt);
+    using ParseFunc = ExprTree( TokIt&, const TokIt);
 
 	template <ParseFunc FuncOnMatch, ParseFunc FuncOnNoMatch>
 	static ExprTree parseParentheses( TokIt& cur, const TokIt end)
@@ -277,8 +277,7 @@ class Parser
 		double v = stod( *cur);
 
 		//	Build the const node
-		auto top = make_node<NodeConst>();
-		top->val = v;
+		auto top = make_node<NodeConst>( v);
 
 		//	Advance over var and return
 		++cur;
@@ -317,8 +316,7 @@ class Parser
 			throw script_error( (string( "Variable name ") + *cur + " is invalid").c_str());
 
 		//	Build the var node
-		auto top = make_node<NodeVar>();
-		top->name = *cur;
+		auto top = make_node<NodeVar>( *cur);
 
 		//	Advance over var and return
 		++cur;

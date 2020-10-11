@@ -26,7 +26,7 @@ class constVisitor;
 
 struct Node;
 
-typedef unique_ptr<Node> ExprTree;
+using ExprTree = unique_ptr<Node>;
 
 //	Base node
 struct Node
@@ -41,16 +41,18 @@ struct Node
 
 //	Factories
 
-template <class NodeType>
-unique_ptr<NodeType> make_node()
+//  Make concrete node
+template <typename ConcreteNode, typename... Args>
+unique_ptr<ConcreteNode> make_node(Args&&... args)
 {
-	return unique_ptr<NodeType>( new NodeType);
+    return unique_ptr<ConcreteNode>(new ConcreteNode(forward<Args>(args)...));
 }
 
-template <class NodeType>
-unique_ptr<Node> make_base_node()
+//  Same but return as pointer on base
+template <typename ConcreteNode, typename... Args>
+unique_ptr<Node> make_base_node(Args&&... args)
 {
-	return unique_ptr<Node>( new NodeType);
+    return unique_ptr<Node>(new ConcreteNode(forward<Args>(args)...));
 }
 
 //	Build binary of the kind in the template parameter, and set its arguments to lhs and rhs trees
@@ -92,7 +94,6 @@ struct NodeTrue: public Node
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
-
 
 //	False
 struct NodeFalse : public Node
@@ -299,6 +300,8 @@ struct NodeConst : public Node
 {
 	double				val;
 
+    NodeConst(const double val_) : val(val_) {}
+
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;
 };
@@ -307,6 +310,8 @@ struct NodeVar : public Node
 {
 	string				name;
 	unsigned			index;
+
+    NodeVar(const string name_) : name(name_) {}
 
 	void acceptVisitor( Visitor& visitor) override;
 	void acceptVisitor( constVisitor& visitor) const override;

@@ -326,15 +326,15 @@ public:
 		//	Evaluate the relevant statements
 		if( isTrue)
 		{
-			const auto lastTrue = node.firstElse == -1? node.arguments.size()-1: node.firstElse-1;
-			for( auto i=1; i<=lastTrue; ++i)
+			const unsigned lastTrue = node.firstElse == -1? node.arguments.size()-1: node.firstElse-1;
+			for( unsigned i=1; i<=lastTrue; ++i)
 			{
 				node.arguments[i]->acceptVisitor( *this);
 			}
 		}
 		else if( node.firstElse != -1)
 		{
-			for( auto i=node.firstElse; i<node.arguments.size(); ++i)
+			for( unsigned i=node.firstElse; i<node.arguments.size(); ++i)
 			{
 				node.arguments[i]->acceptVisitor( *this);
 			}

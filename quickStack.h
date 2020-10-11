@@ -97,8 +97,8 @@ public:
 		return *this;
 	}
 
-	typedef reverse_iterator<T*> iterator;
-	typedef reverse_iterator<const T*> const_iterator;
+	using iterator = reverse_iterator<T*>;
+	using const_iterator = reverse_iterator<const T*>;
 
 	inline iterator begin()
 	{

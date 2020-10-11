@@ -30,13 +30,12 @@ As long as this comment is preserved at the top of the file
 using namespace std;
 #include <vector>
 
-typedef ExprTree Statement;
-
-typedef vector<Statement> Event;
+using Statement = ExprTree;
+using Event = vector<Statement>;
 
 //	Date class from your date library
 //	class Date;
-typedef int Date;
+using Date = int;
 
 class Product
 {
@@ -130,7 +129,7 @@ public:
 		eval.init();
 
 		//	Loop over events
-		for(auto i=0; i<myEvents.size(); ++i)
+		for(size_t i=0; i<myEvents.size(); ++i)
 		{
 			//	Set current event
 			eval.setCurEvt( i);
